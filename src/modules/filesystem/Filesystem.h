@@ -43,7 +43,7 @@
 #else
 #	if defined(LOVE_MACOSX) || defined(LOVE_IOS)
 #		define LOVE_APPDATA_FOLDER "LOVE"
-#	elif defined(LOVE_LINUX)
+#	elif defined(LOVE_LINUX) || defined(LOVE_SAILFISH)
 #		define LOVE_APPDATA_FOLDER "love"
 #	else
 #		define LOVE_APPDATA_PREFIX "."

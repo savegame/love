@@ -101,10 +101,10 @@ void Window::setGLFramebufferAttributes(int msaa, bool sRGB, bool stencil, int d
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, stencil ? 8 : 0);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, depth);
+#ifndef LOVE_SAILFISH
 	SDL_GL_SetAttribute(SDL_GL_RETAINED_BACKING, 0);
-
+	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, stencil ? 8 : 0);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, (msaa > 0) ? 1 : 0);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, (msaa > 0) ? msaa : 0);
 
@@ -119,7 +119,7 @@ void Window::setGLFramebufferAttributes(int msaa, bool sRGB, bool stencil, int d
 		if (hasSDL203orEarlier)
 			SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 0);
 	}
-
+#endif
 #if defined(LOVE_WINDOWS)
 	// Avoid the Microsoft OpenGL 1.1 software renderer on Windows. Apparently
 	// older Intel drivers like to use it as a fallback when requesting some
@@ -142,11 +142,12 @@ void Window::setGLContextAttributes(const ContextAttribs &attribs)
 
 	if (attribs.debug)
 		contextflags |= SDL_GL_CONTEXT_DEBUG_FLAG;
-
+#ifndef LOVE_SAILFISH
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, attribs.versionMajor);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, attribs.versionMinor);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, profilemask);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, contextflags);
+#endif
 }
 
 bool Window::checkGLVersion(const ContextAttribs &attribs, std::string &outversion)
@@ -212,7 +213,11 @@ std::vector<Window::ContextAttribs> Window::getContextAttribsList() const
 #endif
 
 	const char *curdriver = SDL_GetCurrentVideoDriver();
+#ifdef LOVE_SAILFISH
+	const char *glesdrivers[] = { "wayland" };
+#else
 	const char *glesdrivers[] = {"RPI", "Android", "uikit", "winrt", "emscripten"};
+#endif
 
 	// We always want to try OpenGL ES first on certain video backends.
 	for (const char *glesdriver : glesdrivers)
@@ -250,7 +255,8 @@ std::vector<Window::ContextAttribs> Window::getContextAttribsList() const
 	std::vector<ContextAttribs> glescontexts = {{2, 0, true, debug}};
 
 	// While UWP SDL is above 2.0.4, it still doesn't support OpenGL ES 3+
-#ifndef LOVE_WINDOWS_UWP
+#if !defined(LOVE_WINDOWS_UWP) && !defined(LOVE_SAILFISH)
+	// libhypris on SailfishOS stil not support OpenGL ES 3+
 	// OpenGL ES 3+ contexts are only properly supported in SDL 2.0.4+.
 	if (!hasSDL203orEarlier)
 		glescontexts.insert(preferGL2 ? glescontexts.end() : glescontexts.begin(), {3, 0, true, debug});
@@ -413,6 +419,10 @@ bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowfla
 
 bool Window::setWindow(int width, int height, WindowSettings *settings)
 {
+#ifdef LOVE_SAILFISH
+	width = 0;
+	height = 0;
+#endif
 	if (!graphics.get())
 		graphics.set(Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS));
 
@@ -443,6 +453,16 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	// On Android we always must have fullscreen type FULLSCREEN_TYPE_DESKTOP
 #ifdef LOVE_ANDROID
 	f.fstype = FULLSCREEN_DESKTOP;
+#endif
+#ifdef LOVE_SAILFISH
+	if( window && context )
+		return true;
+	f.fstype = FULLSCREEN_EXCLUSIVE;
+	f.centered = false;
+	f.useposition = false;
+	f.resizable = false;
+	f.depth = 8;
+	f.vsync = 0;
 #endif
 
 	if (f.fullscreen)
@@ -747,7 +767,7 @@ Window::DisplayOrientation Window::getDisplayOrientation(int displayindex) const
 {
 	// TODO: We can expose this everywhere, we just need to watch out for the
 	// SDL binary being older than the headers on Linux.
-#if SDL_VERSION_ATLEAST(2, 0, 9) && (defined(LOVE_ANDROID) || !defined(LOVE_LINUX))
+#if SDL_VERSION_ATLEAST(2, 0, 9) && (defined(LOVE_ANDROID) || defined(LOVE_SAILFISH) || !defined(LOVE_LINUX))
 	switch (SDL_GetDisplayOrientation(displayindex))
 	{
 		case SDL_ORIENTATION_UNKNOWN: return ORIENTATION_UNKNOWN;
@@ -1121,7 +1141,7 @@ double Window::getDPIScale() const
 
 double Window::getNativeDPIScale() const
 {
-#ifdef LOVE_ANDROID
+#ifdef LOVE_ANDROID // TODO Sailfish get from SDL physical screen size
 	return love::android::getScreenScale();
 #else
 	return (double) pixelHeight / (double) windowHeight;

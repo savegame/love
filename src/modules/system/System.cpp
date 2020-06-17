@@ -26,7 +26,7 @@
 #include <CoreServices/CoreServices.h>
 #elif defined(LOVE_IOS)
 #include "common/ios.h"
-#elif defined(LOVE_LINUX) || defined(LOVE_ANDROID)
+#elif defined(LOVE_LINUX) || defined(LOVE_ANDROID) || defined(LOVE_SAILFISH)
 #include <signal.h>
 #include <sys/wait.h>
 #include <errno.h>
@@ -63,6 +63,8 @@ std::string System::getOS() const
 	return "Windows";
 #elif defined(LOVE_ANDROID)
 	return "Android";
+#elif defined(LOVE_SAILFISH)
+	return "SailfishOS";
 #elif defined(LOVE_LINUX)
 	return "Linux";
 #else
