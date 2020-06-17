@@ -170,11 +170,12 @@ void Window::setGLContextAttributes(const ContextAttribs &attribs)
 
 	if (attribs.debug)
 		contextflags |= SDL_GL_CONTEXT_DEBUG_FLAG;
-
+#ifndef LOVE_SAILFISH
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, attribs.versionMajor);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, attribs.versionMinor);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, profilemask);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, contextflags);
+#endif
 }
 
 bool Window::checkGLVersion(const ContextAttribs &attribs, std::string &outversion)
@@ -240,7 +241,11 @@ std::vector<Window::ContextAttribs> Window::getContextAttribsList() const
 #endif
 
 	const char *curdriver = SDL_GetCurrentVideoDriver();
+#ifdef LOVE_SAILFISH
+	const char *glesdrivers[] = { "wayland" };
+#else
 	const char *glesdrivers[] = {"RPI", "Android", "uikit", "winrt", "emscripten"};
+#endif
 
 	// We always want to try OpenGL ES first on certain video backends.
 	for (const char *glesdriver : glesdrivers)
@@ -513,6 +518,10 @@ static SDL_DisplayID GetSDLDisplayIDForIndex(int displayindex)
 
 bool Window::setWindow(int width, int height, WindowSettings *settings)
 {
+#ifdef LOVE_SAILFISH
+	width = 0;
+	height = 0;
+#endif
 	if (!graphics.get())
 		graphics.set(Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS));
 
@@ -567,6 +576,16 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 	f.fullscreen = false;
 	f.fstype = FULLSCREEN_DESKTOP;
+#endif
+#ifdef LOVE_SAILFISH
+	if( window && context )
+		return true;
+	f.fstype = FULLSCREEN_EXCLUSIVE;
+	f.centered = false;
+	f.useposition = false;
+	f.resizable = false;
+	f.depth = 8;
+	f.vsync = 0;
 #endif
 
 	int x = f.x;
@@ -1647,7 +1666,7 @@ double Window::getDPIScale() const
 
 double Window::getNativeDPIScale() const
 {
-#ifdef LOVE_ANDROID
+#ifdef LOVE_ANDROID // TODO Sailfish get from SDL physical screen size
 	return love::android::getScreenScale();
 #else
 	return (double) pixelHeight / (double) windowHeight;
