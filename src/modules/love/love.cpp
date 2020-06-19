@@ -543,7 +543,7 @@ int luaopen_love(lua_State *L)
 	lua_pushstring(L, love::VERSION_CODENAME);
 	lua_setfield(L, -2, "_version_codename");
 
-#ifdef LOVE_ANDROID
+#if defined(LOVE_ANDROID) || defined(LOVE_SAILFISH)
 	lua_register(L, "print", w_print_sdl_log);
 #endif
 
