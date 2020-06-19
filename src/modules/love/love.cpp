@@ -382,8 +382,10 @@ int luaopen_love(lua_State *L)
 	lua_pushstring(L, love::VERSION_CODENAME);
 	lua_setfield(L, -2, "_version_codename");
 
-#ifdef LOVE_ANDROID
+#if defined(LOVE_ANDROID)
 	luaJIT_setmode(L, 0, LUAJIT_MODE_ENGINE | LUAJIT_MODE_OFF);
+	lua_register(L, "print", w_print_sdl_log);
+#elif defined(LOVE_SAILFISH)
 	lua_register(L, "print", w_print_sdl_log);
 #endif
 
