@@ -379,18 +379,33 @@ Message *Event::convert(const SDL_Event &e)
 			case SDL_ORIENTATION_UNKNOWN:
 			default:
 				orientation = window::Window::ORIENTATION_UNKNOWN;
+#	ifdef LOVE_SAILFISH
+				txt2 = "portrait";
+#	endif
 				break;
 			case SDL_ORIENTATION_LANDSCAPE:
 				orientation = window::Window::ORIENTATION_LANDSCAPE;
+#	ifdef LOVE_SAILFISH
+				txt2 = "landscape";
+#	endif
 				break;
 			case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
 				orientation = window::Window::ORIENTATION_LANDSCAPE_FLIPPED;
+#	ifdef LOVE_SAILFISH
+				txt2 = "inverted-landscape";
+#	endif
 				break;
 			case SDL_ORIENTATION_PORTRAIT:
 				orientation = window::Window::ORIENTATION_PORTRAIT;
+#	ifdef LOVE_SAILFISH
+				txt2 = "portrait";
+#	endif
 				break;
 			case SDL_ORIENTATION_PORTRAIT_FLIPPED:
 				orientation = window::Window::ORIENTATION_PORTRAIT_FLIPPED;
+#	ifdef LOVE_SAILFISH
+				txt2 = "inverted-portrait";
+#	endif
 				break;
 			}
 
@@ -401,6 +416,19 @@ Message *Event::convert(const SDL_Event &e)
 			vargs.emplace_back(txt);
 
 			msg = new Message("displayrotated", vargs);
+
+#	ifdef LOVE_SAILFISH
+			// need some test for allowed orientations
+			/*
+			"landscape" 
+			"inverted-landscape" -- equal "landscapeflipped" in txt
+			"portrait"
+			"inverted-portrait"  -- equal "portraitflipped" in txt
+			*/
+			if (SDL_SetHintWithPriority(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, txt2, SDL_HINT_OVERRIDE) == SDL_FALSE) {
+				// "WARGNING: Cant set hint SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION for orinetation events"
+			}
+#	endif
 		}
 		break;
 #endif
