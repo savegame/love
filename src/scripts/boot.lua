@@ -179,6 +179,156 @@ function love.arg.parseGameArguments(a)
 	return out
 end
 
+local begin_draw = function () end
+local end_draw = function () end
+local create_canvas = function () end -- when need new resolution for canvas
+local set_canvas = function () end -- when canvas is already exists
+local main_canvas = nil -- canvas handler
+local allowed_orientations = nil
+local allowed_orientation = 6 -- all
+local update_allowed_orientations = function (_resizeable) end
+-- local update_orientation = function (o) end
+local prev_orientation = "portrait"
+local convert_xy = function (x,y) return x,y;  end
+local lg_getWidth, lg_getHeight = nil, nil
+
+local lv_system = require("love.system")
+if lv_system.getOS() == "SailfishOS" then
+	allowed_orientations = {
+		["protrait"] = 0,
+		["landscape"] = 2,
+		["all"] = 6
+	}
+	-- set callbacks for functions
+	require("love.graphics")
+	require("love.window")
+
+	lg_getWidth = love.graphics.getWidth
+	lg_getHeight = love.graphics.getHeight
+
+	update_allowed_orientations = function (_resizeable)
+		local width = lg_getWidth()
+		local height = lg_getHeight()
+		if _resizeable == true or height == width then
+			allowed_orientation = allowed_orientations.all
+			return 
+		end
+		if width > height then -- portrait
+			allowed_orientation = allowed_orientations.portrait
+		else 
+			allowed_orientation = allowed_orientations.landscape
+		end
+		begin_draw = create_canvas
+	end
+
+	set_canvas = function () 
+		love.graphics.setCanvas(main_canvas)
+	end
+
+	create_canvas = function () 
+		 -- portrait canvas 
+		local width = lg_getWidth()
+		local height = lg_getHeight()
+		local o = love.window.getDisplayOrientation()
+
+		local current_orientation = "portrait"
+		if allowed_orientation == allowed_orientations.all then
+			if o == "landscape" or o == "landscapeflipped" then
+				width = height
+				height = love.graphics.getWidth()
+			end
+			current_orientation = o
+		elseif allowed_orientation == allowed_orientations.landscape then
+			if o == "landscape" or o == "landscapeflipped" then
+				current_orientation = o
+			end
+			width = height
+			height = love.graphics.getWidth()
+		else
+			if o == "portrait" or o == "portraitflipped" then
+				current_orientation = o
+			end
+		end 
+
+		if current_orientation == "portrait" or current_orientation == "portraitflipped" then
+			convert_xy = function (x,y)
+				return x,y
+			end
+			love.graphics.getWidth = lg_getWidth
+			love.graphics.getHeight = lg_getHeight
+			end_draw = function ()
+				love.graphics.setCanvas()
+				love.graphics.draw(main_canvas, 0, 0, 0, 1, 1)
+			end
+			if prev_orientation ~= "portrait" or prev_orientation ~= "portraitflipped" then
+				main_canvas = nil
+				main_canvas = love.graphics.newCanvas(width, height);
+			end
+		-- elseif current_orientation == "portraitflipped" then
+		-- 	convert_xy = function (x,y)
+		-- 		return lg_getWidth() - x,lg_getHeight() - y
+		-- 	end
+		-- 	love.graphics.getWidth = lg_getWidth
+		-- 	love.graphics.getHeight = lg_getHeight
+		-- 	end_draw = function ()
+		-- 		love.graphics.setCanvas()
+		-- 		love.graphics.draw(main_canvas, lg_getWidth(), lg_getHeight(), math.pi, 1, 1)
+		-- 	end
+		elseif current_orientation == "landscape" then
+			convert_xy = function (x,y)
+				return y, lg_getWidth() - x
+			end
+			love.graphics.getWidth = lg_getHeight
+			love.graphics.getHeight = lg_getWidth
+			end_draw = function ()
+				love.graphics.setCanvas()
+				love.graphics.draw(main_canvas, lg_getWidth(), 0, math.pi * 0.5, 1, 1)
+			end
+			if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
+				main_canvas = nil
+				main_canvas = love.graphics.newCanvas(width, height);
+			end
+		elseif current_orientation == "landscapeflipped" then
+			convert_xy = function (x,y)
+				return lg_getHeight() - y, x
+			end
+			love.graphics.getWidth = lg_getHeight
+			love.graphics.getHeight = lg_getWidth
+			end_draw = function ()
+				love.graphics.setCanvas()
+				love.graphics.draw(main_canvas, 0, lg_getHeight(), math.pi * 1.5, 1, 1)
+			end
+			if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
+				main_canvas = nil
+				main_canvas = love.graphics.newCanvas(width, height);
+			end
+		end
+		-- print(tostring(current_orientation) .. " is " .. width .. "x" ..height)
+		prev_orientation = current_orientation
+		love.graphics.setCanvas(main_canvas)
+		begin_draw = set_canvas
+	end
+
+	-- update_orientation = function (o)
+	-- 	if prev_orientation ~= o then 
+	-- 		if allowed_orientation == allowed_orientations.all then
+	-- 			begin_draw = create_canvas
+	-- 		end
+	-- 	end
+	-- end
+
+	-- end_draw = function ()
+	-- 	love.graphics.setCanvas()
+	-- end
+
+	if main_canvas == nil then
+		begin_draw = create_canvas
+	else
+		begin_draw = set_canvas
+	end
+end
+lv_system = nil
+
 function love.createhandlers()
 
 	-- Standard callback handlers.
@@ -196,25 +346,25 @@ function love.createhandlers()
 			if love.textedited then return love.textedited(t,s,l) end
 		end,
 		mousemoved = function (x,y,dx,dy,t)
-			if love.mousemoved then return love.mousemoved(x,y,dx,dy,t) end
+			if love.mousemoved then return love.mousemoved( convert_xy(x,y),convert_xy(dx,dy),t) end
 		end,
 		mousepressed = function (x,y,b,t,c)
-			if love.mousepressed then return love.mousepressed(x,y,b,t,c) end
+			if love.mousepressed then return love.mousepressed( convert_xy(x,y),b,t,c) end
 		end,
 		mousereleased = function (x,y,b,t,c)
-			if love.mousereleased then return love.mousereleased(x,y,b,t,c) end
+			if love.mousereleased then return love.mousereleased( convert_xy(x,y),b,t,c) end
 		end,
 		wheelmoved = function (x,y)
 			if love.wheelmoved then return love.wheelmoved(x,y) end
 		end,
 		touchpressed = function (id,x,y,dx,dy,p)
-			if love.touchpressed then return love.touchpressed(id,x,y,dx,dy,p) end
+			if love.touchpressed then return love.touchpressed(id,convert_xy(x,y),convert_xy(dx,dy),p) end
 		end,
 		touchreleased = function (id,x,y,dx,dy,p)
-			if love.touchreleased then return love.touchreleased(id,x,y,dx,dy,p) end
+			if love.touchreleased then return love.touchreleased(id,convert_xy(x,y),convert_xy(dx,dy),p) end
 		end,
 		touchmoved = function (id,x,y,dx,dy,p)
-			if love.touchmoved then return love.touchmoved(id,x,y,dx,dy,p) end
+			if love.touchmoved then return love.touchmoved(id,convert_xy(x,y),convert_xy(dx,dy),p) end
 		end,
 		joystickpressed = function (j,b)
 			if love.joystickpressed then return love.joystickpressed(j,b) end
@@ -273,6 +423,7 @@ function love.createhandlers()
 			collectgarbage()
 		end,
 		displayrotated = function (display, orient)
+			begin_draw = create_canvas
 			if love.displayrotated then return love.displayrotated(display, orient) end
 		end,
 	}, {
@@ -556,6 +707,7 @@ function love.init()
 			assert(love.image, "If an icon is set in love.conf, love.image must be loaded!")
 			love.window.setIcon(love.image.newImageData(c.window.icon))
 		end
+		update_allowed_orientations(c.window.resizable)
 	end
 
 	-- Our first timestep, because window creation can take some time
@@ -613,10 +765,11 @@ function love.run()
 
 		if love.graphics and love.graphics.isActive() then
 			love.graphics.origin()
+			-- for SailfishOS set global canvas
+			begin_draw()
 			love.graphics.clear(love.graphics.getBackgroundColor())
-
 			if love.draw then love.draw() end
-
+			end_draw()
 			love.graphics.present()
 		end
 
