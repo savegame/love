@@ -268,7 +268,10 @@ if lv_system.getOS() == "SailfishOS" then
 			love.graphics.getHeight = lg_getHeight
 			end_draw = function ()
 				lg_setCanvas()
+				-- love.graphics.setColor(1.0,1.0,1.0,1.0)
+				-- love.graphics.clear()
 				love.graphics.draw(main_canvas, 0, 0, 0, 1, 1)
+				-- love.graphics.setColor(255,255,255,255)
 			end
 			if prev_orientation ~= "portrait" or prev_orientation ~= "portraitflipped" then
 				main_canvas = nil
@@ -292,7 +295,10 @@ if lv_system.getOS() == "SailfishOS" then
 			love.graphics.getHeight = lg_getWidth
 			end_draw = function ()
 				lg_setCanvas()
+				-- love.graphics.setColor(1.0,1.0,1.0,1.0)
+				-- love.graphics.clear()
 				love.graphics.draw(main_canvas, lg_getWidth(), 0, math.pi * 0.5, 1, 1)
+				-- love.graphics.setColor(255,255,255,255)
 			end
 			if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
 				main_canvas = nil
@@ -306,7 +312,10 @@ if lv_system.getOS() == "SailfishOS" then
 			love.graphics.getHeight = lg_getWidth
 			end_draw = function ()
 				lg_setCanvas()
+				-- love.graphics.setColor(1.0,1.0,1.0,1.0)
+				-- love.graphics.clear()
 				love.graphics.draw(main_canvas, 0, lg_getHeight(), math.pi * 1.5, 1, 1)
+				-- love.graphics.setColor(255,255,255,255)
 			end
 			if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
 				main_canvas = nil
@@ -356,25 +365,35 @@ function love.createhandlers()
 			if love.textedited then return love.textedited(t,s,l) end
 		end,
 		mousemoved = function (x,y,dx,dy,t)
-			if love.mousemoved then return love.mousemoved( convert_xy(x,y),convert_xy(dx,dy),t) end
+			x,y = convert_xy(x,y)
+			dx,dy = convert_xy(dx,dy)
+			if love.mousemoved then return love.mousemoved( x,y,dx,dy,t) end
 		end,
 		mousepressed = function (x,y,b,t,c)
-			if love.mousepressed then return love.mousepressed( convert_xy(x,y),b,t,c) end
+			x,y = convert_xy(x,y)
+			if love.mousepressed then return love.mousepressed( x,y,b,t,c) end
 		end,
 		mousereleased = function (x,y,b,t,c)
-			if love.mousereleased then return love.mousereleased( convert_xy(x,y),b,t,c) end
+			x,y = convert_xy(x,y)
+			if love.mousereleased then return love.mousereleased( x,y,b,t,c) end
 		end,
 		wheelmoved = function (x,y)
 			if love.wheelmoved then return love.wheelmoved(x,y) end
 		end,
 		touchpressed = function (id,x,y,dx,dy,p)
-			if love.touchpressed then return love.touchpressed(id,convert_xy(x,y),convert_xy(dx,dy),p) end
+			x,y = convert_xy(x,y)
+			dx,dy = convert_xy(dx,dy)
+			if love.touchpressed then return love.touchpressed(id,x,y,dx,dy,p) end
 		end,
 		touchreleased = function (id,x,y,dx,dy,p)
-			if love.touchreleased then return love.touchreleased(id,convert_xy(x,y),convert_xy(dx,dy),p) end
+			x,y = convert_xy(x,y)
+			dx,dy = convert_xy(dx,dy)
+			if love.touchreleased then return love.touchreleased(id,x,y,dx,dy,p) end
 		end,
 		touchmoved = function (id,x,y,dx,dy,p)
-			if love.touchmoved then return love.touchmoved(id,convert_xy(x,y),convert_xy(dx,dy),p) end
+			x,y = convert_xy(x,y)
+			dx,dy = convert_xy(dx,dy)
+			if love.touchmoved then return love.touchmoved(id,x,y,dx,dy,p) end
 		end,
 		joystickpressed = function (j,b)
 			if love.joystickpressed then return love.joystickpressed(j,b) end
@@ -873,8 +892,11 @@ function love.errhand(msg)
 
 	local function draw()
 		local pos = 70
+		lg_setCanvas()
+		-- begin_draw()
 		love.graphics.clear(89/255, 157/255, 220/255)
-		love.graphics.printf(p, pos, pos, love.graphics.getWidth() - pos)
+		love.graphics.printf(p, pos, pos, lg_getWidth() - pos)
+		-- end_draw()
 		love.graphics.present()
 	end
 
