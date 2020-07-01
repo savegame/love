@@ -191,6 +191,7 @@ local update_allowed_orientations = function (_resizeable) end
 local prev_orientation = "portrait"
 local convert_xy = function (x,y) return x,y;  end
 local lg_getWidth, lg_getHeight = nil, nil
+local lg_setCanvas = nil
 
 local lv_system = require("love.system")
 if lv_system.getOS() == "SailfishOS" then
@@ -205,6 +206,15 @@ if lv_system.getOS() == "SailfishOS" then
 
 	lg_getWidth = love.graphics.getWidth
 	lg_getHeight = love.graphics.getHeight
+	lg_setCanvas = love.graphics.setCanvas
+
+	love.graphics.setCanvas = function (canvas)
+		if canvas == nil then
+			lg_setCanvas(main_canvas)
+		else
+			lg_setCanvas(canvas)
+		end
+	end
 
 	update_allowed_orientations = function (_resizeable)
 		local width = lg_getWidth()
@@ -222,7 +232,7 @@ if lv_system.getOS() == "SailfishOS" then
 	end
 
 	set_canvas = function () 
-		love.graphics.setCanvas(main_canvas)
+		lg_setCanvas(main_canvas)
 	end
 
 	create_canvas = function () 
@@ -257,7 +267,7 @@ if lv_system.getOS() == "SailfishOS" then
 			love.graphics.getWidth = lg_getWidth
 			love.graphics.getHeight = lg_getHeight
 			end_draw = function ()
-				love.graphics.setCanvas()
+				lg_setCanvas()
 				love.graphics.draw(main_canvas, 0, 0, 0, 1, 1)
 			end
 			if prev_orientation ~= "portrait" or prev_orientation ~= "portraitflipped" then
@@ -281,7 +291,7 @@ if lv_system.getOS() == "SailfishOS" then
 			love.graphics.getWidth = lg_getHeight
 			love.graphics.getHeight = lg_getWidth
 			end_draw = function ()
-				love.graphics.setCanvas()
+				lg_setCanvas()
 				love.graphics.draw(main_canvas, lg_getWidth(), 0, math.pi * 0.5, 1, 1)
 			end
 			if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
@@ -295,7 +305,7 @@ if lv_system.getOS() == "SailfishOS" then
 			love.graphics.getWidth = lg_getHeight
 			love.graphics.getHeight = lg_getWidth
 			end_draw = function ()
-				love.graphics.setCanvas()
+				lg_setCanvas()
 				love.graphics.draw(main_canvas, 0, lg_getHeight(), math.pi * 1.5, 1, 1)
 			end
 			if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
@@ -305,7 +315,7 @@ if lv_system.getOS() == "SailfishOS" then
 		end
 		-- print(tostring(current_orientation) .. " is " .. width .. "x" ..height)
 		prev_orientation = current_orientation
-		love.graphics.setCanvas(main_canvas)
+		lg_setCanvas(main_canvas)
 		begin_draw = set_canvas
 	end
 
