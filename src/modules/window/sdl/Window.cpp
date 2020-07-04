@@ -519,8 +519,8 @@ static SDL_DisplayID GetSDLDisplayIDForIndex(int displayindex)
 bool Window::setWindow(int width, int height, WindowSettings *settings)
 {
 #ifdef LOVE_SAILFISH
-	width = 0;
-	height = 0;
+	int required_width = width;
+	int required_height = height;
 #endif
 	if (!graphics.get())
 		graphics.set(Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS));
@@ -551,7 +551,9 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	f.displayindex = std::min(std::max(f.displayindex, 0), displaycount - 1);
 
 	// Use the desktop resolution if a width or height of 0 is specified.
+#ifndef LOVE_SAILFISH // or if we are in Sailfish - fullscreen
 	if (width == 0 || height == 0)
+#endif
 	{
 #if SDL_VERSION_ATLEAST(3, 0, 0)
 		const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(displays.ids[f.displayindex]);
@@ -576,8 +578,7 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 	f.fullscreen = false;
 	f.fstype = FULLSCREEN_DESKTOP;
-#endif
-#ifdef LOVE_SAILFISH
+#elif defined(LOVE_SAILFISH)
 	if( window && context )
 		return true;
 	f.fstype = FULLSCREEN_EXCLUSIVE;
@@ -586,6 +587,10 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	f.resizable = false;
 	f.depth = 8;
 	f.vsync = 0;
+	// that need for calculating allowed screen orientation
+	// in SDL_Event convert function in Events
+	f.minwidth = std::max(required_width,1);
+	f.minheight = std::max(required_height,1);
 #endif
 
 	int x = f.x;
