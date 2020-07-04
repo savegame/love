@@ -186,20 +186,14 @@ local set_canvas = function () end -- when canvas is already exists
 local main_canvas = nil -- canvas handler
 local allowed_orientations = nil
 local allowed_orientation = 6 -- all
-local update_allowed_orientations = function (_resizeable) end
--- local update_orientation = function (o) end
 local prev_orientation = "portrait"
 local convert_xy = function (x,y) return x,y;  end
 local lg_getWidth, lg_getHeight = nil, nil
 local lg_setCanvas = nil
+-- local canvas_color = { r = 1, g = 1, b = 1, a = 1 }
 
 local lv_system = require("love.system")
 if lv_system.getOS() == "SailfishOS" then
-	allowed_orientations = {
-		["protrait"] = 0,
-		["landscape"] = 2,
-		["all"] = 6
-	}
 	-- set callbacks for functions
 	require("love.graphics")
 	require("love.window")
@@ -216,20 +210,6 @@ if lv_system.getOS() == "SailfishOS" then
 		end
 	end
 
-	update_allowed_orientations = function (_resizeable)
-		local width = lg_getWidth()
-		local height = lg_getHeight()
-		if _resizeable == true or height == width then
-			allowed_orientation = allowed_orientations.all
-			return 
-		end
-		if width > height then -- portrait
-			allowed_orientation = allowed_orientations.portrait
-		else 
-			allowed_orientation = allowed_orientations.landscape
-		end
-		begin_draw = create_canvas
-	end
 
 	set_canvas = function () 
 		lg_setCanvas(main_canvas)
@@ -239,26 +219,30 @@ if lv_system.getOS() == "SailfishOS" then
 		 -- portrait canvas 
 		local width = lg_getWidth()
 		local height = lg_getHeight()
-		local o = love.window.getDisplayOrientation()
-
-		local current_orientation = "portrait"
-		if allowed_orientation == allowed_orientations.all then
-			if o == "landscape" or o == "landscapeflipped" then
-				width = height
-				height = love.graphics.getWidth()
-			end
-			current_orientation = o
-		elseif allowed_orientation == allowed_orientations.landscape then
-			if o == "landscape" or o == "landscapeflipped" then
-				current_orientation = o
-			end
-			width = height
-			height = love.graphics.getWidth()
-		else
-			if o == "portrait" or o == "portraitflipped" then
-				current_orientation = o
-			end
-		end 
+		-- local o = love.window.getDisplayOrientation()
+		-- update_allowed_orientations(love.window._resizeable)
+		local current_orientation = love.window.getDisplayOrientation() --"portrait"
+		if current_orientation  == "landscape" or current_orientation == "landscapeflipped" then
+			width = lg_getHeight()
+			height = lg_getWidth()
+		end
+		-- if allowed_orientation == allowed_orientations.all then
+		-- 	if o == "landscape" or o == "landscapeflipped" then
+		-- 		width = height
+		-- 		height = lg_getWidth()
+		-- 	end
+		-- 	-- current_orientation = o
+		-- elseif allowed_orientation == allowed_orientations.landscape then
+		-- 	if o == "landscape" or o == "landscapeflipped" then
+		-- 		current_orientation = o
+		-- 	end
+		-- 	width = height
+		-- 	height = lg_getWidth()
+		-- else
+		-- 	if o == "portrait" or o == "portraitflipped" then
+		-- 		current_orientation = o
+		-- 	end
+		-- end 
 
 		if current_orientation == "portrait" or current_orientation == "portraitflipped" then
 			convert_xy = function (x,y)
@@ -268,7 +252,7 @@ if lv_system.getOS() == "SailfishOS" then
 			love.graphics.getHeight = lg_getHeight
 			end_draw = function ()
 				lg_setCanvas()
-				-- love.graphics.setColor(1.0,1.0,1.0,1.0)
+				-- love.graphics.setColor(canvas_color)
 				-- love.graphics.clear()
 				love.graphics.draw(main_canvas, 0, 0, 0, 1, 1)
 				-- love.graphics.setColor(255,255,255,255)
@@ -295,7 +279,7 @@ if lv_system.getOS() == "SailfishOS" then
 			love.graphics.getHeight = lg_getWidth
 			end_draw = function ()
 				lg_setCanvas()
-				-- love.graphics.setColor(1.0,1.0,1.0,1.0)
+				-- love.graphics.setColor(canvas_color)
 				-- love.graphics.clear()
 				love.graphics.draw(main_canvas, lg_getWidth(), 0, math.pi * 0.5, 1, 1)
 				-- love.graphics.setColor(255,255,255,255)
@@ -312,7 +296,7 @@ if lv_system.getOS() == "SailfishOS" then
 			love.graphics.getHeight = lg_getWidth
 			end_draw = function ()
 				lg_setCanvas()
-				-- love.graphics.setColor(1.0,1.0,1.0,1.0)
+				-- love.graphics.setColor(canvas_color)
 				-- love.graphics.clear()
 				love.graphics.draw(main_canvas, 0, lg_getHeight(), math.pi * 1.5, 1, 1)
 				-- love.graphics.setColor(255,255,255,255)
@@ -736,7 +720,7 @@ function love.init()
 			assert(love.image, "If an icon is set in love.conf, love.image must be loaded!")
 			love.window.setIcon(love.image.newImageData(c.window.icon))
 		end
-		update_allowed_orientations(c.window.resizable)
+		-- update_allowed_orientations(c.window.resizable)
 	end
 
 	-- Our first timestep, because window creation can take some time
@@ -892,10 +876,12 @@ function love.errhand(msg)
 
 	local function draw()
 		local pos = 70
-		lg_setCanvas()
+		local width = 0
+		if (lg_setCanvas ~= nil) then width = lg_getWidth() else width = love.graphics.getWidth() end
+		if (lg_setCanvas ~= nil) then lg_setCanvas() else love.graphics.setCanvas() end
 		-- begin_draw()
 		love.graphics.clear(89/255, 157/255, 220/255)
-		love.graphics.printf(p, pos, pos, lg_getWidth() - pos)
+		love.graphics.printf(p, pos, pos, width - pos)
 		-- end_draw()
 		love.graphics.present()
 	end

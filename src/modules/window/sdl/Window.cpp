@@ -420,8 +420,8 @@ bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowfla
 bool Window::setWindow(int width, int height, WindowSettings *settings)
 {
 #ifdef LOVE_SAILFISH
-	width = 0;
-	height = 0;
+	int required_width = width;
+	int required_height = height;
 #endif
 	if (!graphics.get())
 		graphics.set(Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS));
@@ -440,7 +440,9 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	f.display = std::min(std::max(f.display, 0), getDisplayCount() - 1);
 
 	// Use the desktop resolution if a width or height of 0 is specified.
+#ifndef LOVE_SAILFISH // or if we are in Sailfish - fullscreen
 	if (width == 0 || height == 0)
+#endif
 	{
 		SDL_DisplayMode mode = {};
 		SDL_GetDesktopDisplayMode(f.display, &mode);
@@ -453,8 +455,7 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	// On Android we always must have fullscreen type FULLSCREEN_TYPE_DESKTOP
 #ifdef LOVE_ANDROID
 	f.fstype = FULLSCREEN_DESKTOP;
-#endif
-#ifdef LOVE_SAILFISH
+#elif defined(LOVE_SAILFISH)
 	if( window && context )
 		return true;
 	f.fstype = FULLSCREEN_EXCLUSIVE;
@@ -463,6 +464,10 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	f.resizable = false;
 	f.depth = 8;
 	f.vsync = 0;
+	// that need for calculating allowed screen orientation
+	// in SDL_Event convert function in Events
+	f.minwidth = std::max(required_width,1);
+	f.minheight = std::max(required_height,1);
 #endif
 
 	if (f.fullscreen)
@@ -768,6 +773,56 @@ Window::DisplayOrientation Window::getDisplayOrientation(int displayindex) const
 	// TODO: We can expose this everywhere, we just need to watch out for the
 	// SDL binary being older than the headers on Linux.
 #if SDL_VERSION_ATLEAST(2, 0, 9) && (defined(LOVE_ANDROID) || defined(LOVE_SAILFISH) || !defined(LOVE_LINUX))
+#	ifdef LOVE_SAILFISH 
+	/** 
+	 * 0 - all
+	 * 1 - landscape
+	 * 2 - portait 
+	 */
+	int current_orientation = SDL_GetDisplayOrientation(displayindex);
+	if( settings.resizable || settings.minwidth == settings.minheight )
+	{ // any orientation is allowed
+		switch (current_orientation)
+		{
+			case SDL_ORIENTATION_UNKNOWN: return ORIENTATION_UNKNOWN;
+			case SDL_ORIENTATION_LANDSCAPE: return ORIENTATION_LANDSCAPE;
+			case SDL_ORIENTATION_LANDSCAPE_FLIPPED: return ORIENTATION_LANDSCAPE_FLIPPED;
+			// do nto return portrait flipped, its unusable in most cases (can be fixed later if need)
+			case SDL_ORIENTATION_PORTRAIT: 
+			case SDL_ORIENTATION_PORTRAIT_FLIPPED: return ORIENTATION_PORTRAIT;
+		}	
+	}
+	// for keeping current orientation if new is not allowed
+	const char* content_orientation  = SDL_GetHint(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION);
+	// fprintf(stderr, "Window::getDisplayOrientation: current content orientation is %s\n", content_orientation );
+	if( settings.minwidth > settings.minheight ) 
+	{
+		if( current_orientation != SDL_ORIENTATION_LANDSCAPE || current_orientation != SDL_ORIENTATION_LANDSCAPE_FLIPPED )
+		{ // then we should return previous right orientation
+			if( content_orientation == 0 )
+				return ORIENTATION_LANDSCAPE;
+			else if( strcmp(content_orientation, "landscape") == 0 ) {
+				return ORIENTATION_LANDSCAPE;
+			}
+			else if ( strcmp(content_orientation, "inverted-landscape") == 0 ) {
+				return ORIENTATION_LANDSCAPE_FLIPPED;
+			}
+			else
+				return ORIENTATION_LANDSCAPE;
+		}
+		else 
+		{
+			switch (SDL_GetDisplayOrientation(displayindex))
+			{
+				case SDL_ORIENTATION_LANDSCAPE: return ORIENTATION_LANDSCAPE;
+				case SDL_ORIENTATION_LANDSCAPE_FLIPPED: return ORIENTATION_LANDSCAPE_FLIPPED;
+			}
+		}
+	}
+	else //if( settings.minwidth < settings.minheight ) 
+		// in that case orientation should be only portrait
+		return ORIENTATION_PORTRAIT;	
+#	else
 	switch (SDL_GetDisplayOrientation(displayindex))
 	{
 		case SDL_ORIENTATION_UNKNOWN: return ORIENTATION_UNKNOWN;
@@ -776,6 +831,7 @@ Window::DisplayOrientation Window::getDisplayOrientation(int displayindex) const
 		case SDL_ORIENTATION_PORTRAIT: return ORIENTATION_PORTRAIT;
 		case SDL_ORIENTATION_PORTRAIT_FLIPPED: return ORIENTATION_PORTRAIT_FLIPPED;
 	}
+#	endif
 #else
 	LOVE_UNUSED(displayindex);
 #endif

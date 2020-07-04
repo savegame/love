@@ -374,36 +374,70 @@ Message *Event::convert(const SDL_Event &e)
 		if (e.display.event == SDL_DISPLAYEVENT_ORIENTATION)
 		{
 			auto orientation = window::Window::ORIENTATION_UNKNOWN;
+#	ifdef LOVE_SAILFISH
+			// fprintf(stderr, "Window flags: %s\n", SDL_GetHint(SDL_HINT_QTWAYLAND_WINDOW_FLAGS) );
+			/** 
+			 * 0 - all
+			 * 1 - landscape
+			 * 2 - portait 
+			 */
+			int allowed_orientation = 0;
+			// for keeping current orientation if new is not allowed, just set 0 
+			txt2 = 0 ;
+			// fprintf(stderr, "Orientation Event: current orientation is %s\n", SDL_GetHint(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION) );
+			{
+				love::window::Window *w =  Module::getInstance<window::Window>(Module::M_WINDOW);
+				love::window::WindowSettings settings;
+				int width;
+				int height;
+				w->getWindow(width, height, settings);
+				if( !settings.resizable ) 
+				{
+					if( settings.minwidth > settings.minheight ) {
+						allowed_orientation = 1;
+						// fprintf(stderr, "Orientation Event:  allowed orientation is Landscape;\n");
+					} else if( settings.minwidth < settings.minheight ) {
+						allowed_orientation = 2;
+						// fprintf(stderr, "Orientation Event:  allowed orientation is Portrait;\n");
+					}
+				}
+			}
+#	endif
 			switch ((SDL_DisplayOrientation) e.display.data1)
 			{
 			case SDL_ORIENTATION_UNKNOWN:
 			default:
 				orientation = window::Window::ORIENTATION_UNKNOWN;
 #	ifdef LOVE_SAILFISH
+				if(allowed_orientation == 0 || allowed_orientation == 2)
 				txt2 = "portrait";
 #	endif
 				break;
 			case SDL_ORIENTATION_LANDSCAPE:
 				orientation = window::Window::ORIENTATION_LANDSCAPE;
 #	ifdef LOVE_SAILFISH
+				if(allowed_orientation == 0 || allowed_orientation == 1)
 				txt2 = "landscape";
 #	endif
 				break;
 			case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
 				orientation = window::Window::ORIENTATION_LANDSCAPE_FLIPPED;
 #	ifdef LOVE_SAILFISH
+				if(allowed_orientation == 0 || allowed_orientation == 1)
 				txt2 = "inverted-landscape";
 #	endif
 				break;
 			case SDL_ORIENTATION_PORTRAIT:
 				orientation = window::Window::ORIENTATION_PORTRAIT;
 #	ifdef LOVE_SAILFISH
+				if(allowed_orientation == 0 || allowed_orientation == 2)
 				txt2 = "portrait";
 #	endif
 				break;
 			case SDL_ORIENTATION_PORTRAIT_FLIPPED:
 				orientation = window::Window::ORIENTATION_PORTRAIT_FLIPPED;
 #	ifdef LOVE_SAILFISH
+				if(allowed_orientation == 0 || allowed_orientation == 2)
 				txt2 = "inverted-portrait";
 #	endif
 				break;
@@ -425,7 +459,7 @@ Message *Event::convert(const SDL_Event &e)
 			"portrait"
 			"inverted-portrait"  -- equal "portraitflipped" in txt
 			*/
-			if (SDL_SetHintWithPriority(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, txt2, SDL_HINT_OVERRIDE) == SDL_FALSE) {
+			if ( txt2 != 0 && SDL_SetHintWithPriority(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, txt2, SDL_HINT_OVERRIDE) == SDL_FALSE) {
 				// "WARGNING: Cant set hint SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION for orinetation events"
 			}
 #	endif
@@ -604,6 +638,26 @@ Message *Event::convertWindowEvent(const SDL_Event &e)
 	case SDL_WINDOWEVENT_FOCUS_GAINED:
 	case SDL_WINDOWEVENT_FOCUS_LOST:
 		vargs.emplace_back(e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED);
+#ifdef LOVE_SAILFISH
+		if (auto audio = Module::getInstance<audio::Audio>(Module::M_AUDIO))
+		{
+			if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+			{
+				for (auto &src : pausedSources)
+					src->release();
+				pausedSources = audio->pause();
+				for (auto &src : pausedSources)
+					src->retain();
+			}
+			else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
+			{
+				audio->play(pausedSources);
+				for (auto &src : pausedSources)
+					src->release();
+				pausedSources.resize(0);
+			}
+		}
+#endif
 		msg = new Message("focus", vargs);
 		break;
 	case SDL_WINDOWEVENT_ENTER:
