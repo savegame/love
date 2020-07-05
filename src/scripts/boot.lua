@@ -181,15 +181,11 @@ function love.arg.parseGameArguments(a)
 end
 
 -- TODO make global object love.sailfish with table of needed functions
-love.sailfish = {
-	begin_draw = function () end,
- 	end_draw = function () end
-}
+love.sailfish = nil
 local create_canvas = function () end -- when need new resolution for canvas
 local set_canvas = function () end -- when canvas is already exists
 local main_canvas = nil -- canvas handler
 local prev_orientation = "portrait"
-local convert_xy = function (x,y) return x,y;  end
 local lg_getWidth, lg_getHeight = nil, nil
 local lg_setCanvas = nil
 local lg_setColor = nil
@@ -197,6 +193,11 @@ local lg_setColor = nil
 local lv_system = require("love.system")
 if lv_system.getOS() == "SailfishOS" then
 	print("SailfishOS detected")
+	love.sailfish = {
+		begin_draw = function () end,
+		end_draw = function () end,
+		convert_xy = function (x,y) return x,y;  end
+	}
 	-- set callbacks for functions
 	require("love.graphics")
 	require("love.window")
@@ -232,7 +233,7 @@ if lv_system.getOS() == "SailfishOS" then
 		end
 
 		if current_orientation == "portrait" or current_orientation == "portraitflipped" then
-			convert_xy = function (x,y)
+			love.sailfish.convert_xy = function (x,y)
 				return x,y
 			end
 			love.graphics.getWidth = lg_getWidth
@@ -249,7 +250,7 @@ if lv_system.getOS() == "SailfishOS" then
 				main_canvas = love.graphics.newCanvas(width, height);
 			end
 		-- elseif current_orientation == "portraitflipped" then
-		-- 	convert_xy = function (x,y)
+		-- 	love.sailfish.convert_xy = function (x,y)
 		-- 		return lg_getWidth() - x,lg_getHeight() - y
 		-- 	end
 		-- 	love.graphics.getWidth = lg_getWidth
@@ -259,7 +260,7 @@ if lv_system.getOS() == "SailfishOS" then
 		-- 		love.graphics.draw(main_canvas, lg_getWidth(), lg_getHeight(), math.pi, 1, 1)
 		-- 	end
 		elseif current_orientation == "landscape" then
-			convert_xy = function (x,y)
+			love.sailfish.convert_xy = function (x,y)
 				return y, lg_getWidth() - x
 			end
 			love.graphics.getWidth = lg_getHeight
@@ -276,7 +277,7 @@ if lv_system.getOS() == "SailfishOS" then
 				main_canvas = love.graphics.newCanvas(width, height);
 			end
 		elseif current_orientation == "landscapeflipped" then
-			convert_xy = function (x,y)
+			love.sailfish.convert_xy = function (x,y)
 				return lg_getHeight() - y, x
 			end
 			love.graphics.getWidth = lg_getHeight
@@ -324,34 +325,42 @@ function love.createhandlers()
 			if love.textedited then return love.textedited(t,s,l) end
 		end,
 		mousemoved = function (x,y,dx,dy,t)
-			x,y = convert_xy(x,y)
-			dx,dy = convert_xy(dx,dy)
+			if love.sailfish then
+				x,y = love.sailfish.convert_xy(x,y)
+				dx,dy = love.sailfish.convert_xy(dx,dy)
+			end
 			if love.mousemoved then return love.mousemoved( x,y,dx,dy,t) end
 		end,
 		mousepressed = function (x,y,b,t,c)
-			x,y = convert_xy(x,y)
+			if love.sailfish then x,y = love.sailfish.convert_xy(x,y) end
 			if love.mousepressed then return love.mousepressed( x,y,b,t,c) end
 		end,
 		mousereleased = function (x,y,b,t,c)
-			x,y = convert_xy(x,y)
+			if love.sailfish then x,y = love.sailfish.convert_xy(x,y) end
 			if love.mousereleased then return love.mousereleased( x,y,b,t,c) end
 		end,
 		wheelmoved = function (x,y)
 			if love.wheelmoved then return love.wheelmoved(x,y) end
 		end,
 		touchpressed = function (id,x,y,dx,dy,p)
-			x,y = convert_xy(x,y)
-			dx,dy = convert_xy(dx,dy)
+			if love.sailfish then
+				x,y = love.sailfish.convert_xy(x,y)
+				dx,dy = love.sailfish.convert_xy(dx,dy)
+			end
 			if love.touchpressed then return love.touchpressed(id,x,y,dx,dy,p) end
 		end,
 		touchreleased = function (id,x,y,dx,dy,p)
-			x,y = convert_xy(x,y)
-			dx,dy = convert_xy(dx,dy)
+			if love.sailfish then
+				x,y = love.sailfish.convert_xy(x,y)
+				dx,dy = love.sailfish.convert_xy(dx,dy)
+			end
 			if love.touchreleased then return love.touchreleased(id,x,y,dx,dy,p) end
 		end,
 		touchmoved = function (id,x,y,dx,dy,p)
-			x,y = convert_xy(x,y)
-			dx,dy = convert_xy(dx,dy)
+			if love.sailfish then
+				x,y = love.sailfish.convert_xy(x,y)
+				dx,dy = love.sailfish.convert_xy(dx,dy)
+			end
 			if love.touchmoved then return love.touchmoved(id,x,y,dx,dy,p) end
 		end,
 		joystickpressed = function (j,b)
@@ -411,7 +420,9 @@ function love.createhandlers()
 			collectgarbage()
 		end,
 		displayrotated = function (display, orient)
+			if love.sailfish then
 			love.sailfish.begin_draw = create_canvas
+			end
 			if love.displayrotated then return love.displayrotated(display, orient) end
 		end,
 	}, {
@@ -754,10 +765,10 @@ function love.run()
 		if love.graphics and love.graphics.isActive() then
 			love.graphics.origin()
 			-- for SailfishOS set global canvas
-			love.sailfish.begin_draw()
+			if love.sailfish then love.sailfish.begin_draw() end
 			love.graphics.clear(love.graphics.getBackgroundColor())
 			if love.draw then love.draw() end
-			love.sailfish.end_draw()
+			if love.sailfish then love.sailfish.end_draw() end
 			love.graphics.present()
 		end
 
