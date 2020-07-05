@@ -124,7 +124,7 @@
 #	define LOVE_LEGENDARY_APP_ARGV_HACK
 #endif
 
-#if defined(LOVE_ANDROID) || defined(LOVE_IOS)
+#if defined(LOVE_ANDROID) || defined(LOVE_IOS) //|| defined(LOVE_SAILFISH)
 #	define LOVE_LEGENDARY_ACCELEROMETER_AS_JOYSTICK_HACK
 #endif
 

@@ -24,7 +24,6 @@ local love = require("love")
 -- Used for setup:
 love.path = {}
 love.arg = {}
-love.sailfish = {}
 
 -- Replace any \ with /.
 function love.path.normalslashes(p)
@@ -196,7 +195,8 @@ if lv_system.getOS() == "SailfishOS" then
 	love.sailfish = {
 		begin_draw = function () end,
 		end_draw = function () end,
-		convert_xy = function (x,y) return x,y;  end
+		convert_xy = function (x,y) return x,y;  end,
+		convert_dxdy = function (x,y) return dx,dy;  end
 	}
 	-- set callbacks for functions
 	require("love.graphics")
@@ -218,6 +218,7 @@ if lv_system.getOS() == "SailfishOS" then
 
 	set_canvas = function () 
 		lg_setCanvas(main_canvas)
+		love.graphics.clear(0,0,0,1)
 	end
 
 	create_canvas = function () 
@@ -236,12 +237,15 @@ if lv_system.getOS() == "SailfishOS" then
 			love.sailfish.convert_xy = function (x,y)
 				return x,y
 			end
+			love.sailfish.convert_dxdy = function (x,y)
+				return x,y
+			end
 			love.graphics.getWidth = lg_getWidth
 			love.graphics.getHeight = lg_getHeight
 			love.sailfish.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
-				-- love.graphics.clear()
+				love.graphics.clear(0,0,0,1)
 				love.graphics.draw(main_canvas, 0, 0, 0, 1, 1)
 				-- love.graphics.setColor(255,255,255,255)
 			end
@@ -263,12 +267,16 @@ if lv_system.getOS() == "SailfishOS" then
 			love.sailfish.convert_xy = function (x,y)
 				return y, lg_getWidth() - x
 			end
+			love.sailfish.convert_dxdy = function (x,y)
+				return y,-x
+			end
 			love.graphics.getWidth = lg_getHeight
 			love.graphics.getHeight = lg_getWidth
 			love.sailfish.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				-- love.graphics.clear()
+				love.graphics.clear(0,0,0,1)
 				love.graphics.draw(main_canvas, lg_getWidth(), 0, math.pi * 0.5, 1, 1)
 				-- love.graphics.setColor(255,255,255,255)
 			end
@@ -280,12 +288,16 @@ if lv_system.getOS() == "SailfishOS" then
 			love.sailfish.convert_xy = function (x,y)
 				return lg_getHeight() - y, x
 			end
+			love.sailfish.convert_dxdy = function (x,y)
+				return -y,x
+			end
 			love.graphics.getWidth = lg_getHeight
 			love.graphics.getHeight = lg_getWidth
 			love.sailfish.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				-- love.graphics.clear()
+				love.graphics.clear(0,0,0,1)
 				love.graphics.draw(main_canvas, 0, lg_getHeight(), math.pi * 1.5, 1, 1)
 				-- love.graphics.setColor(255,255,255,255)
 			end
@@ -327,7 +339,7 @@ function love.createhandlers()
 		mousemoved = function (x,y,dx,dy,t)
 			if love.sailfish then
 				x,y = love.sailfish.convert_xy(x,y)
-				dx,dy = love.sailfish.convert_xy(dx,dy)
+				dx,dy = love.sailfish.convert_dxdy(dx,dy)
 			end
 			if love.mousemoved then return love.mousemoved( x,y,dx,dy,t) end
 		end,
@@ -345,21 +357,21 @@ function love.createhandlers()
 		touchpressed = function (id,x,y,dx,dy,p)
 			if love.sailfish then
 				x,y = love.sailfish.convert_xy(x,y)
-				dx,dy = love.sailfish.convert_xy(dx,dy)
+				dx,dy = love.sailfish.convert_dxdy(dx,dy)
 			end
 			if love.touchpressed then return love.touchpressed(id,x,y,dx,dy,p) end
 		end,
 		touchreleased = function (id,x,y,dx,dy,p)
 			if love.sailfish then
 				x,y = love.sailfish.convert_xy(x,y)
-				dx,dy = love.sailfish.convert_xy(dx,dy)
+				dx,dy = love.sailfish.convert_dxdy(dx,dy)
 			end
 			if love.touchreleased then return love.touchreleased(id,x,y,dx,dy,p) end
 		end,
 		touchmoved = function (id,x,y,dx,dy,p)
 			if love.sailfish then
 				x,y = love.sailfish.convert_xy(x,y)
-				dx,dy = love.sailfish.convert_xy(dx,dy)
+				dx,dy = love.sailfish.convert_dxdy(dx,dy)
 			end
 			if love.touchmoved then return love.touchmoved(id,x,y,dx,dy,p) end
 		end,
