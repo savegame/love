@@ -21,6 +21,17 @@ freely, subject to the following restrictions:
 -- Make sure love exists.
 local love = require("love")
 
+if love.system.getOS() == "SailfishOS" then
+	local lg_getWidth = love.graphics.getWidth
+	local lg_getDimensions = love.graphics.getDimensions
+	love.graphics.getWidth = love.graphics.getHeight
+	love.graphics.getHeight = lg_getWidth
+	love.graphics.getDimensions = function () 
+		h, w = lg_getDimensions()
+		return w,h
+	end
+end
+
 function love.nogame()
 
 	R = {}
