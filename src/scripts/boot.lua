@@ -190,6 +190,7 @@ local lg_getWidth, lg_getHeight = nil, nil
 local lg_setCanvas = nil
 local lg_setColor = nil
 local lg_clear = nil
+local lg_getDimensions = nil
 
 local lv_system = require("love.system")
 if lv_system.getOS() == "SailfishOS" then
@@ -206,6 +207,7 @@ if lv_system.getOS() == "SailfishOS" then
 
 	lg_getWidth = love.graphics.getWidth
 	lg_getHeight = love.graphics.getHeight
+	lg_getDimensions = love.graphics.getDimensions
 	lg_setCanvas = love.graphics.setCanvas
 	lg_setColor = love.graphics.setColor
 	lg_clear = love.graphics.clear
@@ -246,6 +248,9 @@ if lv_system.getOS() == "SailfishOS" then
 			end
 			love.graphics.getWidth = lg_getWidth
 			love.graphics.getHeight = lg_getHeight
+			love.graphics.getDimensions = function ()
+				return lg_getDimensions()
+			end
 			love.sailfish.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
@@ -276,6 +281,10 @@ if lv_system.getOS() == "SailfishOS" then
 			end
 			love.graphics.getWidth = lg_getHeight
 			love.graphics.getHeight = lg_getWidth
+			love.graphics.getDimensions = function ()
+				local h,w = lg_getDimensions()
+				return w,h
+			end
 			love.sailfish.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
@@ -295,6 +304,10 @@ if lv_system.getOS() == "SailfishOS" then
 			end
 			love.graphics.getWidth = lg_getHeight
 			love.graphics.getHeight = lg_getWidth
+			love.graphics.getDimensions = function ()
+				local h,w = lg_getDimensions()
+				return w,h
+			end
 			love.sailfish.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
