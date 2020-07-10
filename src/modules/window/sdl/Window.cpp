@@ -458,12 +458,13 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 #elif defined(LOVE_SAILFISH)
 	if( window && context )
 		return true;
-	f.fstype = FULLSCREEN_EXCLUSIVE;
+	f.fstype = FULLSCREEN_DESKTOP;
 	f.centered = false;
 	f.useposition = false;
 	f.resizable = false;
 	f.depth = 8;
 	f.vsync = 0;
+	f.fullscreen = true;
 	// that need for calculating allowed screen orientation
 	// in SDL_Event convert function in Events
 	f.minwidth = std::max(required_width,1);

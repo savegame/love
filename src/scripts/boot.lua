@@ -186,6 +186,7 @@ local create_canvas = function () end -- when need new resolution for canvas
 local set_canvas = function () end -- when canvas is already exists
 local main_canvas = nil -- canvas handler
 local prev_orientation = "portrait"
+local sailfish_init = nil -- init function 
 local lg_getWidth, lg_getHeight = nil, nil
 local lg_setCanvas = nil
 local lg_setColor = nil
@@ -194,7 +195,7 @@ local lg_getDimensions = nil
 
 local lv_system = require("love.system")
 if lv_system.getOS() == "SailfishOS" then
-	print("SailfishOS detected")
+	print("Sailfish init: SailfishOS detected")
 	love.sailfish = {
 		begin_draw = function () end,
 		end_draw = function () end,
@@ -211,6 +212,18 @@ if lv_system.getOS() == "SailfishOS" then
 	lg_setCanvas = love.graphics.setCanvas
 	lg_setColor = love.graphics.setColor
 	lg_clear = love.graphics.clear
+
+	sailfish_init = function () 
+		if lg_getWidth() < lg_getHeight() then
+			love.graphics.getWidth = lg_getHeight
+			love.graphics.getHeight = lg_getWidth
+			love.graphics.getDimensions = function ()
+				local h,w = lg_getDimensions()
+				return w,h
+			end
+			print("Sailfish init: graphics resolution "..love.graphics.getWidth().."x"..love.graphics.getHeight())
+		end
+	end
 
 	love.graphics.setCanvas = function (canvas)
 		if canvas == nil then
@@ -255,7 +268,7 @@ if lv_system.getOS() == "SailfishOS" then
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
-				love.graphics.draw(main_canvas, 0, 0, 0, 1, 1)
+				love.graphics.draw(main_canvas, 0, 0, 0)
 				-- love.graphics.setColor(255,255,255,255)
 			end
 			if prev_orientation ~= "portrait" or prev_orientation ~= "portraitflipped" then
@@ -289,7 +302,7 @@ if lv_system.getOS() == "SailfishOS" then
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
-				love.graphics.draw(main_canvas, lg_getWidth(), 0, math.pi * 0.5, 1, 1)
+				love.graphics.draw(main_canvas, lg_getWidth(), 0, math.pi * 0.5)
 			end
 			if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
 				main_canvas = nil
@@ -312,7 +325,7 @@ if lv_system.getOS() == "SailfishOS" then
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
-				love.graphics.draw(main_canvas, 0, lg_getHeight(), math.pi * 1.5, 1, 1)
+				love.graphics.draw(main_canvas, 0, lg_getHeight(), math.pi * 1.5)
 			end
 			if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
 				main_canvas = nil
@@ -446,8 +459,8 @@ function love.createhandlers()
 			collectgarbage()
 		end,
 		displayrotated = function (display, orient)
-			if love.sailfish then
-			love.sailfish.begin_draw = create_canvas
+			if love.sailfish ~= nil then
+				love.sailfish.begin_draw = create_canvas
 			end
 			if love.displayrotated then return love.displayrotated(display, orient) end
 		end,
@@ -733,6 +746,13 @@ function love.init()
 			love.window.setIcon(love.image.newImageData(c.window.icon))
 		end
 		-- update_allowed_orientations(c.window.resizable)
+	end
+
+	-- init sailfish graphics tricks -- TODO need move all it to Graphics.cpp 
+	if sailfish_init ~= nil then
+		require("love.window")
+		require("love.graphics")
+		sailfish_init()
 	end
 
 	-- Our first timestep, because window creation can take some time
