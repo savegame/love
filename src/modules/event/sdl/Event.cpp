@@ -438,7 +438,8 @@ Message *Event::convert(const SDL_Event &e)
 				orientation = window::Window::ORIENTATION_PORTRAIT_FLIPPED;
 #	ifdef LOVE_SAILFISH
 				if(allowed_orientation == 0 || allowed_orientation == 2)
-				txt2 = "inverted-portrait";
+				// txt2 = "inverted-portrait";
+				txt2 = "portrait";
 #	endif
 				break;
 			}
