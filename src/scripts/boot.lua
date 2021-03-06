@@ -200,42 +200,57 @@ if lv_system.getOS() == "SailfishOS" then
 		begin_draw = function () end,
 		end_draw = function () end,
 		convert_xy = function (x,y) return x,y;  end,
-		convert_dxdy = function (x,y) return x,y;  end
+		convert_dxdy = function (x,y) return x,y;  end,
+		swap_xy = function (x,y) return y,x; end
 	}
 	-- set callbacks for functions
 	require("love.graphics")
 	require("love.window")
+	require("love.touch")
 
 	lg_getWidth = love.graphics.getWidth
 	lg_getHeight = love.graphics.getHeight
 	lg_getDimensions = love.graphics.getDimensions
+	lg_getDesktopDimensions = love.window.getDesktopDimensions
 	lg_setCanvas = love.graphics.setCanvas
 	lg_setColor = love.graphics.setColor
 	lg_clear = love.graphics.clear
+	lt_getPosition = love.touch.getPosition
 
 	sailfish_init = function () 
-		if lg_getWidth() < lg_getHeight() then
-			love.graphics.getWidth = lg_getHeight
-			love.graphics.getHeight = lg_getWidth
-			love.graphics.getDimensions = function ()
-				local h,w = lg_getDimensions()
-				return w,h
+		local current_orientation = love.window.getDisplayOrientation()
+		if current_orientation ~= "portrait" and current_orientation ~= "portraitflipped" then
+			if lg_getWidth() < lg_getHeight() then
+				love.graphics.getWidth = lg_getHeight
+				love.graphics.getHeight = lg_getWidth
+				love.graphics.getDimensions = function ()
+					local h,w = lg_getDimensions()
+					return w,h
+				end
+				love.window.getDesktopDimensions = function ()
+					local h,w = lg_getDesktopDimensions() 
+					return w,h
+				end
 			end
-			print("Sailfish init: graphics resolution "..love.graphics.getWidth().."x"..love.graphics.getHeight())
 		end
+		print("Sailfish init: graphics resolution "..love.graphics.getWidth().."x"..love.graphics.getHeight())
 	end
-
+	
 	love.graphics.setCanvas = function (canvas)
 		if canvas == nil then
-			lg_setCanvas(main_canvas)
+			lg_setCanvas({main_canvas, stencil=true})
 		else
 			lg_setCanvas(canvas)
 		end
 	end
+	love.touch.getPosition = function (...) 
+		return love.sailfish.convert_xy( lt_getPosition(...) )
+	end
+	
 
 
 	set_canvas = function () 
-		lg_setCanvas(main_canvas)
+		lg_setCanvas({main_canvas, stencil=true})
 		lg_clear(0,0,0,1)
 	end
 
@@ -264,12 +279,14 @@ if lv_system.getOS() == "SailfishOS" then
 			love.graphics.getDimensions = function ()
 				return lg_getDimensions()
 			end
+			love.window.getDesktopDimensions = function ()
+				return lg_getDesktopDimensions()
+			end
 			love.sailfish.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
 				love.graphics.draw(main_canvas, 0, 0, 0)
-				-- love.graphics.setColor(255,255,255,255)
 			end
 			if prev_orientation ~= "portrait" or prev_orientation ~= "portraitflipped" then
 				main_canvas = nil
@@ -298,6 +315,10 @@ if lv_system.getOS() == "SailfishOS" then
 				local h,w = lg_getDimensions()
 				return w,h
 			end
+			love.window.getDesktopDimensions = function ()
+				local h,w = lg_getDesktopDimensions() 
+				return w,h
+			end
 			love.sailfish.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
@@ -321,6 +342,10 @@ if lv_system.getOS() == "SailfishOS" then
 				local h,w = lg_getDimensions()
 				return w,h
 			end
+			love.window.getDesktopDimensions = function ()
+				local h,w = lg_getDesktopDimensions() 
+				return w,h
+			end
 			love.sailfish.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
@@ -333,7 +358,7 @@ if lv_system.getOS() == "SailfishOS" then
 			end
 		end
 		prev_orientation = current_orientation
-		lg_setCanvas(main_canvas)
+		lg_setCanvas({main_canvas, stencil=true})
 		love.sailfish.begin_draw = set_canvas
 	end
 
@@ -786,6 +811,9 @@ function love.run()
 	if love.timer then love.timer.step() end
 
 	local dt = 0
+	if love.sailfish ~= nil and not love.window then
+		love.window = require("love.window")
+	end
 
 	-- Main loop time.
 	return function()
@@ -800,6 +828,11 @@ function love.run()
 				end
 				love.handlers[name](a,b,c,d,e,f)
 			end
+		end
+		-- in sailfish we should stop processing game , while it minimized
+		if love.sailfish and love.window  and not love.window.hasFocus() and love.graphics then
+			-- print("Window is hidden")
+			-- goto continue_run
 		end
 
 		-- Update dt, as we'll be passing it to update
@@ -818,6 +851,7 @@ function love.run()
 			love.graphics.present()
 		end
 
+		-- ::continue_run::
 		if love.timer then love.timer.sleep(0.001) end
 	end
 

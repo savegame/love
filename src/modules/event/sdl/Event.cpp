@@ -91,7 +91,9 @@ static int SDLCALL watchAppEvents(void * /*udata*/, SDL_Event *event)
 	default:
 		break;
 	}
-
+#ifdef LOVE_SAILFISH
+	// fprintf(stderr, "SDL_APP Event: %i\n", event->type);
+#endif
 	return 1;
 }
 
@@ -110,6 +112,9 @@ Event::Event()
 
 Event::~Event()
 {
+#ifdef LOVE_SAILFISH
+
+#endif
 	SDL_DelEventWatch(watchAppEvents, this);
 	SDL_QuitSubSystem(SDL_INIT_EVENTS);
 }
@@ -410,28 +415,28 @@ Message *Event::convert(const SDL_Event &e)
 				orientation = window::Window::ORIENTATION_UNKNOWN;
 #	ifdef LOVE_SAILFISH
 				if(allowed_orientation == 0 || allowed_orientation == 2)
-				txt2 = "portrait";
+					txt2 = "portrait";
 #	endif
 				break;
 			case SDL_ORIENTATION_LANDSCAPE:
 				orientation = window::Window::ORIENTATION_LANDSCAPE;
 #	ifdef LOVE_SAILFISH
 				if(allowed_orientation == 0 || allowed_orientation == 1)
-				txt2 = "landscape";
+					txt2 = "landscape";
 #	endif
 				break;
 			case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
 				orientation = window::Window::ORIENTATION_LANDSCAPE_FLIPPED;
 #	ifdef LOVE_SAILFISH
 				if(allowed_orientation == 0 || allowed_orientation == 1)
-				txt2 = "inverted-landscape";
+					txt2 = "inverted-landscape";
 #	endif
 				break;
 			case SDL_ORIENTATION_PORTRAIT:
 				orientation = window::Window::ORIENTATION_PORTRAIT;
 #	ifdef LOVE_SAILFISH
 				if(allowed_orientation == 0 || allowed_orientation == 2)
-				txt2 = "portrait";
+					txt2 = "portrait";
 #	endif
 				break;
 			case SDL_ORIENTATION_PORTRAIT_FLIPPED:
@@ -491,6 +496,15 @@ Message *Event::convert(const SDL_Event &e)
 		break;
 	case SDL_QUIT:
 	case SDL_APP_TERMINATING:
+#ifdef LOVE_SAILFISH
+		if (auto audio = Module::getInstance<audio::Audio>(Module::M_AUDIO))
+		{ // return audio sources to audio module before quit 
+			audio->play(pausedSources);
+			for (auto &src : pausedSources)
+				src->release();
+			pausedSources.resize(0);	
+		}
+#endif
 		msg = new Message("quit");
 		break;
 	case SDL_APP_LOWMEMORY:
