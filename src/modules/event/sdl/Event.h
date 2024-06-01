@@ -78,7 +78,7 @@ private:
 	static std::map<SDL_Keycode, love::keyboard::Keyboard::Key> createKeyMap();
 	static std::map<SDL_Keycode, love::keyboard::Keyboard::Key> keys;
 
-#if defined(LOVE_ANDROID) || defined(LOVE_SAILFISH)
+#if defined(LOVE_ANDROID) || defined(LOVE_AURORAOS)
 	std::vector<love::audio::Source*> pausedSources;
 #endif
 

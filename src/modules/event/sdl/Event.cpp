@@ -35,6 +35,13 @@
 
 #include <cmath>
 
+#ifdef LOVE_AURORAOS
+#include <SDL.h>
+#include <SDL_video.h>
+#include <SDL_syswm.h>
+#include <wayland-client-protocol.h>
+#endif
+
 namespace love
 {
 namespace event
@@ -91,7 +98,7 @@ static int SDLCALL watchAppEvents(void * /*udata*/, SDL_Event *event)
 	default:
 		break;
 	}
-#ifdef LOVE_SAILFISH
+#ifdef LOVE_AURORAOS
 	// fprintf(stderr, "SDL_APP Event: %i\n", event->type);
 #endif
 	return 1;
@@ -112,7 +119,7 @@ Event::Event()
 
 Event::~Event()
 {
-#ifdef LOVE_SAILFISH
+#ifdef LOVE_AURORAOS
 
 #endif
 	SDL_DelEventWatch(watchAppEvents, this);
@@ -379,7 +386,7 @@ Message *Event::convert(const SDL_Event &e)
 		if (e.display.event == SDL_DISPLAYEVENT_ORIENTATION)
 		{
 			auto orientation = window::Window::ORIENTATION_UNKNOWN;
-#	ifdef LOVE_SAILFISH
+#	ifdef LOVE_AURORAOS
 			// fprintf(stderr, "Window flags: %s\n", SDL_GetHint(SDL_HINT_QTWAYLAND_WINDOW_FLAGS) );
 			/** 
 			 * 0 - all
@@ -387,17 +394,20 @@ Message *Event::convert(const SDL_Event &e)
 			 * 2 - portait 
 			 */
 			int allowed_orientation = 0;
+			struct SDL_SysWMinfo wmInfo;
+			SDL_VERSION(&wmInfo.version);
+			SDL_Window *sdl_window = nullptr;
 			// for keeping current orientation if new is not allowed, just set 0 
 			txt2 = 0 ;
 			// fprintf(stderr, "Orientation Event: current orientation is %s\n", SDL_GetHint(SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION) );
 			{
 				love::window::Window *w =  Module::getInstance<window::Window>(Module::M_WINDOW);
 				love::window::WindowSettings settings;
+				sdl_window = reinterpret_cast<SDL_Window*>(const_cast<void*>(w->getHandle()));
 				int width;
 				int height;
 				w->getWindow(width, height, settings);
-				if( !settings.resizable ) 
-				{
+				if( !settings.resizable ) {
 					if( settings.minwidth > settings.minheight ) {
 						allowed_orientation = 1;
 						// fprintf(stderr, "Orientation Event:  allowed orientation is Landscape;\n");
@@ -413,38 +423,63 @@ Message *Event::convert(const SDL_Event &e)
 			case SDL_ORIENTATION_UNKNOWN:
 			default:
 				orientation = window::Window::ORIENTATION_UNKNOWN;
-#	ifdef LOVE_SAILFISH
-				if(allowed_orientation == 0 || allowed_orientation == 2)
+#	ifdef LOVE_AURORAOS
+				if(allowed_orientation == 0 || allowed_orientation == 2) {
 					txt2 = "portrait";
+					if (sdl_window && SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
+						fprintf(stderr, "AuroraOS: Set content orientation to Portrait\n");
+						wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
+					}
+				}
 #	endif
 				break;
 			case SDL_ORIENTATION_LANDSCAPE:
 				orientation = window::Window::ORIENTATION_LANDSCAPE;
-#	ifdef LOVE_SAILFISH
-				if(allowed_orientation == 0 || allowed_orientation == 1)
+#	ifdef LOVE_AURORAOS
+				if(allowed_orientation == 0 || allowed_orientation == 1) {
 					txt2 = "landscape";
+					if (sdl_window && SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
+						fprintf(stderr, "AuroraOS: Set content orientation to Landscape\n");
+						wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_90);
+					}
+				}
 #	endif
 				break;
 			case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
 				orientation = window::Window::ORIENTATION_LANDSCAPE_FLIPPED;
-#	ifdef LOVE_SAILFISH
-				if(allowed_orientation == 0 || allowed_orientation == 1)
-					txt2 = "inverted-landscape";
+#	ifdef LOVE_AURORAOS
+				if(allowed_orientation == 0 || allowed_orientation == 1) {
+					txt2 = "landscapeflipped";
+					if (sdl_window && SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
+						fprintf(stderr, "AuroraOS: Set content orientation to Landscape Inverted\n");
+						wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_270);
+					}
+				}
 #	endif
 				break;
 			case SDL_ORIENTATION_PORTRAIT:
 				orientation = window::Window::ORIENTATION_PORTRAIT;
-#	ifdef LOVE_SAILFISH
-				if(allowed_orientation == 0 || allowed_orientation == 2)
+#	ifdef LOVE_AURORAOS
+				if(allowed_orientation == 0 || allowed_orientation == 2) {
 					txt2 = "portrait";
+					if (sdl_window && SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
+						fprintf(stderr, "AuroraOS: Set content orientation to Portrait\n");
+						wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
+					}
+				}
 #	endif
 				break;
 			case SDL_ORIENTATION_PORTRAIT_FLIPPED:
 				orientation = window::Window::ORIENTATION_PORTRAIT_FLIPPED;
-#	ifdef LOVE_SAILFISH
-				if(allowed_orientation == 0 || allowed_orientation == 2)
+#	ifdef LOVE_AURORAOS
+				if(allowed_orientation == 0 || allowed_orientation == 2) {
 				// txt2 = "inverted-portrait";
-				txt2 = "portrait";
+					txt2 = "portrait";
+					if (sdl_window && SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
+						fprintf(stderr, "AuroraOS: Set content orientation to Portrait but rotated\n");
+						wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_180);
+					}
+				}
 #	endif
 				break;
 			}
@@ -457,7 +492,7 @@ Message *Event::convert(const SDL_Event &e)
 
 			msg = new Message("displayrotated", vargs);
 
-#	ifdef LOVE_SAILFISH
+#	ifdef LOVE_AURORAOS
 			// need some test for allowed orientations
 			/*
 			"landscape" 
@@ -496,7 +531,7 @@ Message *Event::convert(const SDL_Event &e)
 		break;
 	case SDL_QUIT:
 	case SDL_APP_TERMINATING:
-#ifdef LOVE_SAILFISH
+#ifdef LOVE_AURORAOS
 		if (auto audio = Module::getInstance<audio::Audio>(Module::M_AUDIO))
 		{ // return audio sources to audio module before quit 
 			audio->play(pausedSources);
@@ -653,7 +688,7 @@ Message *Event::convertWindowEvent(const SDL_Event &e)
 	case SDL_WINDOWEVENT_FOCUS_GAINED:
 	case SDL_WINDOWEVENT_FOCUS_LOST:
 		vargs.emplace_back(e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED);
-#ifdef LOVE_SAILFISH
+#ifdef LOVE_AURORAOS
 		if (auto audio = Module::getInstance<audio::Audio>(Module::M_AUDIO))
 		{
 			if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST)

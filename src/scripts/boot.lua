@@ -24,8 +24,8 @@ local love = require("love")
 -- Used for setup:
 love.path = {}
 love.arg = {}
--- Used for canvas tricks on SailfishOS:
-love.sailfish = nil
+-- Used for canvas tricks on AuroraOS:
+love.auroraos = nil
 
 -- Replace any \ with /.
 function love.path.normalslashes(p)
@@ -181,12 +181,12 @@ function love.arg.parseGameArguments(a)
 	return out
 end
 
--- TODO make global object love.sailfish with table of needed functions
+-- TODO make global object love.auroraos with table of needed functions
 local create_canvas = function () end -- when need new resolution for canvas
 local set_canvas = function () end -- when canvas is already exists
 local main_canvas = nil -- canvas handler
 local prev_orientation = "portrait"
-local sailfish_init = nil -- init function 
+local auroraos_init = nil -- init function 
 local lg_getWidth, lg_getHeight = nil, nil
 local lg_setCanvas = nil
 local lg_setColor = nil
@@ -194,9 +194,9 @@ local lg_clear = nil
 local lg_getDimensions = nil
 
 local lv_system = require("love.system")
-if lv_system.getOS() == "SailfishOS" then
-	print("Sailfish init: SailfishOS detected")
-	love.sailfish = {
+if lv_system.getOS() == "AuroraOS" then
+	print("Sailfish init: AuroraOS detected")
+	love.auroraos = {
 		begin_draw = function () end,
 		end_draw = function () end,
 		convert_xy = function (x,y) return x,y;  end,
@@ -217,7 +217,7 @@ if lv_system.getOS() == "SailfishOS" then
 	lg_clear = love.graphics.clear
 	lt_getPosition = love.touch.getPosition
 
-	sailfish_init = function () 
+	auroraos_init = function () 
 		local current_orientation = love.window.getDisplayOrientation()
 		if current_orientation ~= "portrait" and current_orientation ~= "portraitflipped" then
 			if lg_getWidth() < lg_getHeight() then
@@ -244,7 +244,7 @@ if lv_system.getOS() == "SailfishOS" then
 		end
 	end
 	love.touch.getPosition = function (...) 
-		return love.sailfish.convert_xy( lt_getPosition(...) )
+		return love.auroraos.convert_xy( lt_getPosition(...) )
 	end
 	
 
@@ -268,10 +268,10 @@ if lv_system.getOS() == "SailfishOS" then
 		end
 
 		if current_orientation == "portrait" or current_orientation == "portraitflipped" then
-			love.sailfish.convert_xy = function (x,y)
+			love.auroraos.convert_xy = function (x,y)
 				return x,y
 			end
-			love.sailfish.convert_dxdy = function (x,y)
+			love.auroraos.convert_dxdy = function (x,y)
 				return x,y
 			end
 			love.graphics.getWidth = lg_getWidth
@@ -282,7 +282,7 @@ if lv_system.getOS() == "SailfishOS" then
 			love.window.getDesktopDimensions = function ()
 				return lg_getDesktopDimensions()
 			end
-			love.sailfish.end_draw = function ()
+			love.auroraos.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
@@ -293,20 +293,20 @@ if lv_system.getOS() == "SailfishOS" then
 				main_canvas = love.graphics.newCanvas(width, height);
 			end
 		-- elseif current_orientation == "portraitflipped" then
-		-- 	love.sailfish.convert_xy = function (x,y)
+		-- 	love.auroraos.convert_xy = function (x,y)
 		-- 		return lg_getWidth() - x,lg_getHeight() - y
 		-- 	end
 		-- 	love.graphics.getWidth = lg_getWidth
 		-- 	love.graphics.getHeight = lg_getHeight
-		-- 	love.sailfish.end_draw = function ()
+		-- 	love.auroraos.end_draw = function ()
 		-- 		love.graphics.setCanvas()
 		-- 		love.graphics.draw(main_canvas, lg_getWidth(), lg_getHeight(), math.pi, 1, 1)
 		-- 	end
 		elseif current_orientation == "landscape" then
-			love.sailfish.convert_xy = function (x,y)
+			love.auroraos.convert_xy = function (x,y)
 				return y, lg_getWidth() - x
 			end
-			love.sailfish.convert_dxdy = function (x,y)
+			love.auroraos.convert_dxdy = function (x,y)
 				return y,-x
 			end
 			love.graphics.getWidth = lg_getHeight
@@ -319,7 +319,7 @@ if lv_system.getOS() == "SailfishOS" then
 				local h,w = lg_getDesktopDimensions() 
 				return w,h
 			end
-			love.sailfish.end_draw = function ()
+			love.auroraos.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
@@ -330,10 +330,10 @@ if lv_system.getOS() == "SailfishOS" then
 				main_canvas = love.graphics.newCanvas(width, height);
 			end
 		elseif current_orientation == "landscapeflipped" then
-			love.sailfish.convert_xy = function (x,y)
+			love.auroraos.convert_xy = function (x,y)
 				return lg_getHeight() - y, x
 			end
-			love.sailfish.convert_dxdy = function (x,y)
+			love.auroraos.convert_dxdy = function (x,y)
 				return -y,x
 			end
 			love.graphics.getWidth = lg_getHeight
@@ -346,7 +346,7 @@ if lv_system.getOS() == "SailfishOS" then
 				local h,w = lg_getDesktopDimensions() 
 				return w,h
 			end
-			love.sailfish.end_draw = function ()
+			love.auroraos.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
@@ -359,13 +359,13 @@ if lv_system.getOS() == "SailfishOS" then
 		end
 		prev_orientation = current_orientation
 		lg_setCanvas({main_canvas, stencil=true})
-		love.sailfish.begin_draw = set_canvas
+		love.auroraos.begin_draw = set_canvas
 	end
 
 	if main_canvas == nil then
-		love.sailfish.begin_draw = create_canvas
+		love.auroraos.begin_draw = create_canvas
 	else
-		love.sailfish.begin_draw = set_canvas
+		love.auroraos.begin_draw = set_canvas
 	end
 -- else 
 	-- print("System is "+lv_system.getOS())
@@ -389,41 +389,41 @@ function love.createhandlers()
 			if love.textedited then return love.textedited(t,s,l) end
 		end,
 		mousemoved = function (x,y,dx,dy,t)
-			if love.sailfish then
-				x,y = love.sailfish.convert_xy(x,y)
-				dx,dy = love.sailfish.convert_dxdy(dx,dy)
+			if love.auroraos then
+				x,y = love.auroraos.convert_xy(x,y)
+				dx,dy = love.auroraos.convert_dxdy(dx,dy)
 			end
 			if love.mousemoved then return love.mousemoved( x,y,dx,dy,t) end
 		end,
 		mousepressed = function (x,y,b,t,c)
-			if love.sailfish then x,y = love.sailfish.convert_xy(x,y) end
+			if love.auroraos then x,y = love.auroraos.convert_xy(x,y) end
 			if love.mousepressed then return love.mousepressed( x,y,b,t,c) end
 		end,
 		mousereleased = function (x,y,b,t,c)
-			if love.sailfish then x,y = love.sailfish.convert_xy(x,y) end
+			if love.auroraos then x,y = love.auroraos.convert_xy(x,y) end
 			if love.mousereleased then return love.mousereleased( x,y,b,t,c) end
 		end,
 		wheelmoved = function (x,y)
 			if love.wheelmoved then return love.wheelmoved(x,y) end
 		end,
 		touchpressed = function (id,x,y,dx,dy,p)
-			if love.sailfish then
-				x,y = love.sailfish.convert_xy(x,y)
-				dx,dy = love.sailfish.convert_dxdy(dx,dy)
+			if love.auroraos then
+				x,y = love.auroraos.convert_xy(x,y)
+				dx,dy = love.auroraos.convert_dxdy(dx,dy)
 			end
 			if love.touchpressed then return love.touchpressed(id,x,y,dx,dy,p) end
 		end,
 		touchreleased = function (id,x,y,dx,dy,p)
-			if love.sailfish then
-				x,y = love.sailfish.convert_xy(x,y)
-				dx,dy = love.sailfish.convert_dxdy(dx,dy)
+			if love.auroraos then
+				x,y = love.auroraos.convert_xy(x,y)
+				dx,dy = love.auroraos.convert_dxdy(dx,dy)
 			end
 			if love.touchreleased then return love.touchreleased(id,x,y,dx,dy,p) end
 		end,
 		touchmoved = function (id,x,y,dx,dy,p)
-			if love.sailfish then
-				x,y = love.sailfish.convert_xy(x,y)
-				dx,dy = love.sailfish.convert_dxdy(dx,dy)
+			if love.auroraos then
+				x,y = love.auroraos.convert_xy(x,y)
+				dx,dy = love.auroraos.convert_dxdy(dx,dy)
 			end
 			if love.touchmoved then return love.touchmoved(id,x,y,dx,dy,p) end
 		end,
@@ -484,8 +484,8 @@ function love.createhandlers()
 			collectgarbage()
 		end,
 		displayrotated = function (display, orient)
-			if love.sailfish ~= nil then
-				love.sailfish.begin_draw = create_canvas
+			if love.auroraos ~= nil then
+				love.auroraos.begin_draw = create_canvas
 			end
 			if love.displayrotated then return love.displayrotated(display, orient) end
 		end,
@@ -773,11 +773,11 @@ function love.init()
 		-- update_allowed_orientations(c.window.resizable)
 	end
 
-	-- init sailfish graphics tricks -- TODO need move all it to Graphics.cpp 
-	if sailfish_init ~= nil then
+	-- init auroraos graphics tricks -- TODO need move all it to Graphics.cpp 
+	if auroraos_init ~= nil then
 		require("love.window")
 		require("love.graphics")
-		sailfish_init()
+		auroraos_init()
 	end
 
 	-- Our first timestep, because window creation can take some time
@@ -811,7 +811,7 @@ function love.run()
 	if love.timer then love.timer.step() end
 
 	local dt = 0
-	if love.sailfish ~= nil and not love.window then
+	if love.auroraos ~= nil and not love.window then
 		love.window = require("love.window")
 	end
 
@@ -829,8 +829,8 @@ function love.run()
 				love.handlers[name](a,b,c,d,e,f)
 			end
 		end
-		-- in sailfish we should stop processing game , while it minimized
-		if love.sailfish and love.window  and not love.window.hasFocus() and love.graphics then
+		-- in auroraos we should stop processing game , while it minimized
+		if love.auroraos and love.window  and not love.window.hasFocus() and love.graphics then
 			-- print("Window is hidden")
 			-- goto continue_run
 		end
@@ -843,11 +843,11 @@ function love.run()
 
 		if love.graphics and love.graphics.isActive() then
 			love.graphics.origin()
-			-- for SailfishOS set global canvas
-			if love.sailfish then love.sailfish.begin_draw() end
+			-- for AuroraOS set global canvas
+			if love.auroraos then love.auroraos.begin_draw() end
 			love.graphics.clear(love.graphics.getBackgroundColor())
 			if love.draw then love.draw() end
-			if love.sailfish then love.sailfish.end_draw() end
+			if love.auroraos then love.auroraos.end_draw() end
 			love.graphics.present()
 		end
 
@@ -945,10 +945,10 @@ function love.errhand(msg)
 		local width = 0
 		if (lg_setCanvas ~= nil) then width = lg_getWidth() else width = love.graphics.getWidth() end
 		if (lg_setCanvas ~= nil) then lg_setCanvas() else love.graphics.setCanvas() end
-		-- love.sailfish.begin_draw()
+		-- love.auroraos.begin_draw()
 		love.graphics.clear(89/255, 157/255, 220/255)
 		love.graphics.printf(p, pos, pos, width - pos)
-		-- love.sailfish.end_draw()
+		-- love.auroraos.end_draw()
 		love.graphics.present()
 	end
 

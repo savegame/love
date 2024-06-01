@@ -21,7 +21,7 @@ freely, subject to the following restrictions:
 -- Make sure love exists.
 local love = require("love")
 
-if love.system.getOS() == "SailfishOS" then
+if love.system.getOS() == "AuroraOS" then
 	local lg_getWidth = love.graphics.getWidth
 	local lg_getDimensions = love.graphics.getDimensions
 	love.graphics.getWidth = love.graphics.getHeight

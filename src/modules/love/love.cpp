@@ -34,13 +34,13 @@
 #include <windows.h>
 #endif // LOVE_WINDOWS
 
-#if defined(LOVE_ANDROID) || defined(LOVE_SAILFISH)
+#if defined(LOVE_ANDROID) || defined(LOVE_AURORAOS)
 #include <SDL.h>
 extern "C"
 {
 #include "luajit.h"
 }
-#endif // LOVE_ANDROID || LOVE_SAILFISH
+#endif // LOVE_ANDROID || LOVE_AURORAOS
 
 #ifdef LOVE_LEGENDARY_CONSOLE_IO_HACK
 #include <fcntl.h>
@@ -215,7 +215,7 @@ int w__openConsole(lua_State *L);
 int w__setAccelerometerAsJoystick(lua_State *L);
 #endif
 
-#if defined(LOVE_ANDROID) || defined(LOVE_SAILFISH)
+#if defined(LOVE_ANDROID) || defined(LOVE_AURORAOS)
 static int w_print_sdl_log(lua_State *L)
 {
 	int nargs = lua_gettop(L);
@@ -385,7 +385,7 @@ int luaopen_love(lua_State *L)
 #if defined(LOVE_ANDROID)
 	luaJIT_setmode(L, 0, LUAJIT_MODE_ENGINE | LUAJIT_MODE_OFF);
 	lua_register(L, "print", w_print_sdl_log);
-#elif defined(LOVE_SAILFISH)
+#elif defined(LOVE_AURORAOS)
 	lua_register(L, "print", w_print_sdl_log);
 #endif
 
@@ -435,8 +435,8 @@ int luaopen_love(lua_State *L)
 	lua_pushstring(L, "iOS");
 #elif defined(LOVE_ANDROID)
 	lua_pushstring(L, "Android");
-#elif defined(LOVE_SAILFISH)
-	lua_pushstring(L, "SailfishOS");
+#elif defined(LOVE_AURORAOS)
+	lua_pushstring(L, "AuroraOS");
 #elif defined(LOVE_LINUX)
 	lua_pushstring(L, "Linux");
 #else
