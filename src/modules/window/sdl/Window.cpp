@@ -31,6 +31,12 @@
 #include "common/ios.h"
 #endif
 
+#ifdef LOVE_AURORAOS
+#include <SDL.h>
+#include <SDL_video.h>
+#include <wayland-client-protocol.h>
+#endif
+
 // C++
 #include <iostream>
 #include <vector>
@@ -421,6 +427,7 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 #ifdef LOVE_AURORAOS
 	int required_width = width;
 	int required_height = height;
+	fprintf(stderr, "[AURORAOS] Required size %ix%i\n", required_width, required_height);
 #endif
 	if (!graphics.get())
 		graphics.set(Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS));
@@ -433,13 +440,51 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	if (settings)
 		f = *settings;
 
-	f.minwidth = std::max(f.minwidth, 1);
+	f.minwidth = std::max(f.minwidth, 2);
 	f.minheight = std::max(f.minheight, 1);
 
 	f.display = std::min(std::max(f.display, 0), getDisplayCount() - 1);
 
 	// Use the desktop resolution if a width or height of 0 is specified.
-#ifndef LOVE_AURORAOS // or if we are in Sailfish - fullscreen
+#ifdef LOVE_AURORAOS // or if we are in Sailfish - fullscreen
+	{ // set content rotation
+		// fprintf(stderr, "[AURORAOS] Resizeable %s\n", (f.resizable ? "true" : "false"));
+		struct SDL_SysWMinfo wmInfo;
+		SDL_VERSION(&wmInfo.version);
+		int orientation = SDL_GetDisplayOrientation(0);
+		if (f.minwidth > f.minheight) { // landscape
+			switch(orientation) {
+			case SDL_ORIENTATION_LANDSCAPE:
+				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
+					fprintf(stderr, "[AURORAOS] Set content orientation to Landscape\n");
+					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
+				}
+				break;
+			case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
+				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
+					fprintf(stderr, "[AURORAOS] Set content orientation to Landscape Flipped\n");
+					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
+				}
+				break;
+			}
+		} else { // portrait
+			switch(orientation) {
+			case SDL_ORIENTATION_PORTRAIT:
+				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
+					fprintf(stderr, "[AURORAOS] Set content orientation to Portrait\n");
+					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
+				}
+				break;
+			case SDL_ORIENTATION_PORTRAIT_FLIPPED:
+				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
+					fprintf(stderr, "[AURORAOS] Set content orientation to Portrait but rotated\n");
+					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_180);
+				}
+				break;
+			}
+		}
+	}
+#else
 	if (width == 0 || height == 0)
 #endif
 	{
@@ -466,8 +511,9 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	f.fullscreen = true;
 	// that need for calculating allowed screen orientation
 	// in SDL_Event convert function in Events
-	f.minwidth = std::max(required_width,1);
+	f.minwidth = std::max(required_width,2);
 	f.minheight = std::max(required_height,1);
+	fprintf(stderr, "[AURORAOS] Min size %ix%i\n", f.minwidth, f.minheight);
 #endif
 
 	if (f.fullscreen)

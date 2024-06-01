@@ -24,7 +24,7 @@ local love = require("love")
 -- Used for setup:
 love.path = {}
 love.arg = {}
--- Used for canvas tricks on AuroraOS:
+-- Used for canvas tricks on [AURORAOS]
 love.auroraos = nil
 
 -- Replace any \ with /.
@@ -201,7 +201,8 @@ if lv_system.getOS() == "AuroraOS" then
 		end_draw = function () end,
 		convert_xy = function (x,y) return x,y;  end,
 		convert_dxdy = function (x,y) return x,y;  end,
-		swap_xy = function (x,y) return y,x; end
+		swap_xy = function (x,y) return y,x; end,
+		screen = {x = 0, y = 0, w = 1, h = 1, scale = 0}
 	}
 	-- set callbacks for functions
 	require("love.graphics")
@@ -219,6 +220,7 @@ if lv_system.getOS() == "AuroraOS" then
 
 	auroraos_init = function () 
 		local current_orientation = love.window.getDisplayOrientation()
+		-- print("[AURORAOS] Current orientation: ", current_orientation)
 		if current_orientation ~= "portrait" and current_orientation ~= "portraitflipped" then
 			if lg_getWidth() < lg_getHeight() then
 				love.graphics.getWidth = lg_getHeight
@@ -233,7 +235,7 @@ if lv_system.getOS() == "AuroraOS" then
 				end
 			end
 		end
-		print("Sailfish init: graphics resolution "..love.graphics.getWidth().."x"..love.graphics.getHeight())
+		-- print("[AURORAOS] init: graphics resolution ", love.graphics.getWidth(), love.graphics.getHeight())
 	end
 	
 	love.graphics.setCanvas = function (canvas)
@@ -249,7 +251,7 @@ if lv_system.getOS() == "AuroraOS" then
 	
 
 
-	set_canvas = function () 
+	set_canvas = function ()
 		lg_setCanvas({main_canvas, stencil=true})
 		lg_clear(0,0,0,1)
 	end
@@ -261,7 +263,7 @@ if lv_system.getOS() == "AuroraOS" then
 		-- local o = love.window.getDisplayOrientation()
 		-- update_allowed_orientations(love.window._resizeable)
 		local current_orientation = love.window.getDisplayOrientation() --"portrait"
-		-- print("SailfshOS orientation: "..current_orientation)
+		-- print("[AURORAOS] orientation: "..current_orientation)
 		if current_orientation  == "landscape" or current_orientation == "landscapeflipped" then
 			width = lg_getHeight()
 			height = lg_getWidth()
@@ -288,9 +290,17 @@ if lv_system.getOS() == "AuroraOS" then
 				lg_clear(0,0,0,1)
 				love.graphics.draw(main_canvas, 0, 0, 0)
 			end
-			if prev_orientation ~= "portrait" or prev_orientation ~= "portraitflipped" then
+			
+			local w,h, flags = love.window.getMode()
+			love.auroraos.screen.scale = math.min(width/flags.minwidth, height/flags.minheight)
+			love.auroraos.screen.w = math.floor(flags.minwidth * love.auroraos.screen.scale)
+			love.auroraos.screen.h = math.floor(flags.minheight * love.auroraos.screen.scale)
+			love.auroraos.screen.x = math.floor((height - love.auroraos.screen.h) * 0.5)
+			love.auroraos.screen.y = math.floor((width - love.auroraos.screen.w) * 0.5)
+			if not main_canvas or main_canvas:getWidth() ~= flags.minwidth or main_canvas:getHeight() ~= flags.minheight then
 				main_canvas = nil
-				main_canvas = love.graphics.newCanvas(width, height);
+				main_canvas = love.graphics.newCanvas(flags.minwidth, flags.minheight);
+				print("[AURORAOS] Create canvas", flags.minwidth, flags.minheight)
 			end
 		-- elseif current_orientation == "portraitflipped" then
 		-- 	love.auroraos.convert_xy = function (x,y)
@@ -302,7 +312,7 @@ if lv_system.getOS() == "AuroraOS" then
 		-- 		love.graphics.setCanvas()
 		-- 		love.graphics.draw(main_canvas, lg_getWidth(), lg_getHeight(), math.pi, 1, 1)
 		-- 	end
-		elseif current_orientation == "landscape" then
+		elseif current_orientation == "landscapeflipped" then
 			love.auroraos.convert_xy = function (x,y)
 				return y, lg_getWidth() - x
 			end
@@ -323,13 +333,27 @@ if lv_system.getOS() == "AuroraOS" then
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
-				love.graphics.draw(main_canvas, lg_getWidth(), 0, math.pi * 0.5)
+				love.graphics.draw(main_canvas, 
+									love.auroraos.screen.x + lg_getWidth(),
+									love.auroraos.screen.y,
+									math.pi * 0.5,
+									love.auroraos.screen.scale, love.auroraos.screen.scale)
 			end
-			if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
+			-- if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
+			local w,h, flags = love.window.getMode()
+			print("[AURORAOS] Landscape inverted minsize is ", flags.minwidth, flags.minheight)
+			love.auroraos.screen.scale = math.min(width/flags.minwidth, height/flags.minheight)
+			love.auroraos.screen.w = math.floor(flags.minwidth * love.auroraos.screen.scale)
+			love.auroraos.screen.h = math.floor(flags.minheight * love.auroraos.screen.scale)
+			love.auroraos.screen.x = math.floor((height - love.auroraos.screen.h) * 0.5)
+			love.auroraos.screen.y = math.floor((width - love.auroraos.screen.w) * 0.5)
+			
+			if not main_canvas or main_canvas:getWidth() ~= flags.minwidth or main_canvas:getHeight() ~= flags.minheight then
 				main_canvas = nil
-				main_canvas = love.graphics.newCanvas(width, height);
+				main_canvas = love.graphics.newCanvas(flags.minwidth, flags.minheight);
+				print("[AURORAOS] Create canvas", flags.minwidth, flags.minheight)
 			end
-		elseif current_orientation == "landscapeflipped" then
+		elseif current_orientation == "landscape" then
 			love.auroraos.convert_xy = function (x,y)
 				return lg_getHeight() - y, x
 			end
@@ -350,11 +374,26 @@ if lv_system.getOS() == "AuroraOS" then
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
-				love.graphics.draw(main_canvas, 0, lg_getHeight(), math.pi * 1.5)
+				love.graphics.draw(main_canvas, 
+					love.auroraos.screen.x,
+					love.auroraos.screen.y + lg_getHeight(),
+					math.pi * 1.5,
+					love.auroraos.screen.scale,
+					love.auroraos.screen.scale)
 			end
-			if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
+
+			local w,h, flags = love.window.getMode()
+			print("[AURORAOS] Landscape minsize is ", flags.minwidth, flags.minheight)
+			love.auroraos.screen.scale = math.min(width/flags.minwidth, height/flags.minheight)
+			love.auroraos.screen.w = math.floor(flags.minwidth * love.auroraos.screen.scale)
+			love.auroraos.screen.h = math.floor(flags.minheight * love.auroraos.screen.scale)
+			love.auroraos.screen.x = math.floor((height - love.auroraos.screen.h) * 0.5)
+			love.auroraos.screen.y = -math.floor((width - love.auroraos.screen.w) * 0.5)
+
+			if not main_canvas or main_canvas:getWidth() ~= flags.minwidth or main_canvas:getHeight() ~= flags.minheight then
 				main_canvas = nil
-				main_canvas = love.graphics.newCanvas(width, height);
+				main_canvas = love.graphics.newCanvas(flags.minwidth, flags.minheight);
+				print("[AURORAOS] Create canvas", flags.minwidth, flags.minheight)
 			end
 		end
 		prev_orientation = current_orientation
@@ -778,6 +817,8 @@ function love.init()
 		require("love.window")
 		require("love.graphics")
 		auroraos_init()
+	else
+		print("[AURORAOS] Cant init AuroraOS")
 	end
 
 	-- Our first timestep, because window creation can take some time

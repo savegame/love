@@ -407,15 +407,18 @@ Message *Event::convert(const SDL_Event &e)
 				int width;
 				int height;
 				w->getWindow(width, height, settings);
-				if( !settings.resizable ) {
-					if( settings.minwidth > settings.minheight ) {
-						allowed_orientation = 1;
-						// fprintf(stderr, "Orientation Event:  allowed orientation is Landscape;\n");
-					} else if( settings.minwidth < settings.minheight ) {
-						allowed_orientation = 2;
-						// fprintf(stderr, "Orientation Event:  allowed orientation is Portrait;\n");
-					}
+				// fprintf(stderr, "[AURORAOS] Resizeable: %s Min size: %ix%i\n", (settings.resizable ? "true" : "false"), settings.minwidth,  settings.minheight);
+				// if( settings.resizable ) {
+				if( settings.minwidth > settings.minheight ) {
+					allowed_orientation = 1;
+					// fprintf(stderr, "[AURORAOS] Allowed orientation is Landscape;\n");
+				} else if( settings.minwidth < settings.minheight ) {
+					allowed_orientation = 2;
+					// fprintf(stderr, "[AURORAOS] Allowed orientation is Portrait;\n");
+				// } else {
+					// fprintf(stderr, "[AURORAOS] Allowed orientation is All;\n");
 				}
+				// }
 			}
 #	endif
 			switch ((SDL_DisplayOrientation) e.display.data1)
@@ -427,7 +430,7 @@ Message *Event::convert(const SDL_Event &e)
 				if(allowed_orientation == 0 || allowed_orientation == 2) {
 					txt2 = "portrait";
 					if (sdl_window && SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
-						fprintf(stderr, "AuroraOS: Set content orientation to Portrait\n");
+						fprintf(stderr, "[AURORAOS] Set content orientation to Portrait\n");
 						wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
 					}
 				}
@@ -439,7 +442,7 @@ Message *Event::convert(const SDL_Event &e)
 				if(allowed_orientation == 0 || allowed_orientation == 1) {
 					txt2 = "landscape";
 					if (sdl_window && SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
-						fprintf(stderr, "AuroraOS: Set content orientation to Landscape\n");
+						fprintf(stderr, "[AURORAOS] Set content orientation to Landscape\n");
 						wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_90);
 					}
 				}
@@ -451,7 +454,7 @@ Message *Event::convert(const SDL_Event &e)
 				if(allowed_orientation == 0 || allowed_orientation == 1) {
 					txt2 = "landscapeflipped";
 					if (sdl_window && SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
-						fprintf(stderr, "AuroraOS: Set content orientation to Landscape Inverted\n");
+						fprintf(stderr, "[AURORAOS] Set content orientation to Landscape Inverted\n");
 						wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_270);
 					}
 				}
@@ -463,7 +466,7 @@ Message *Event::convert(const SDL_Event &e)
 				if(allowed_orientation == 0 || allowed_orientation == 2) {
 					txt2 = "portrait";
 					if (sdl_window && SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
-						fprintf(stderr, "AuroraOS: Set content orientation to Portrait\n");
+						fprintf(stderr, "[AURORAOS] Set content orientation to Portrait\n");
 						wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
 					}
 				}
@@ -476,7 +479,7 @@ Message *Event::convert(const SDL_Event &e)
 				// txt2 = "inverted-portrait";
 					txt2 = "portrait";
 					if (sdl_window && SDL_GetWindowWMInfo(sdl_window, &wmInfo)) {
-						fprintf(stderr, "AuroraOS: Set content orientation to Portrait but rotated\n");
+						fprintf(stderr, "[AURORAOS] Set content orientation to Portrait but rotated\n");
 						wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_180);
 					}
 				}
@@ -486,11 +489,16 @@ Message *Event::convert(const SDL_Event &e)
 
 			if (!window::Window::getConstant(orientation, txt))
 				txt = "unknown";
+#ifdef LOVE_AURORAOS
+			if (txt2) {
+#endif
+				vargs.emplace_back((double)(e.display.display + 1));
+				vargs.emplace_back(txt);
 
-			vargs.emplace_back((double)(e.display.display + 1));
-			vargs.emplace_back(txt);
-
-			msg = new Message("displayrotated", vargs);
+				msg = new Message("displayrotated", vargs);
+#ifdef LOVE_AURORAOS
+			}
+#endif
 
 #	ifdef LOVE_AURORAOS
 			// need some test for allowed orientations
