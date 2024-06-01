@@ -70,7 +70,9 @@ if(POLICY CMP0072)
 	cmake_policy(SET CMP0072 NEW)
 endif()
 
+if(NOT AURORAOS)
 find_package(OpenGL)
+endif()
 
 if(MEGA)
 	# LOVE_MSVC_DLLS contains runtime DLLs that should be bundled with the love
@@ -174,7 +176,12 @@ Please see http://bitbucket.org/rude/megasource
 	find_package(Freetype REQUIRED)
 	find_package(ModPlug REQUIRED)
 	find_package(OpenAL REQUIRED)
-	find_package(OpenGL REQUIRED)
+	if(NOT AURORAOS)
+		find_package(OpenGL REQUIRED)
+	else()
+		add_definitions(-D SAILFISHOS)
+		set(OPENGL_gl_LIBRARY "")
+	endif()
 	find_package(SDL2 REQUIRED)
 	find_package(Theora REQUIRED)
 	find_package(Vorbis REQUIRED)
