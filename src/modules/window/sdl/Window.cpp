@@ -442,49 +442,10 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 	f.minwidth = std::max(f.minwidth, 2);
 	f.minheight = std::max(f.minheight, 1);
-
 	f.display = std::min(std::max(f.display, 0), getDisplayCount() - 1);
 
 	// Use the desktop resolution if a width or height of 0 is specified.
-#ifdef LOVE_AURORAOS // or if we are in Sailfish - fullscreen
-	{ // set content rotation
-		// fprintf(stderr, "[AURORAOS] Resizeable %s\n", (f.resizable ? "true" : "false"));
-		struct SDL_SysWMinfo wmInfo;
-		SDL_VERSION(&wmInfo.version);
-		int orientation = SDL_GetDisplayOrientation(0);
-		if (f.minwidth > f.minheight) { // landscape
-			switch(orientation) {
-			case SDL_ORIENTATION_LANDSCAPE:
-				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
-					fprintf(stderr, "[AURORAOS] Set content orientation to Landscape\n");
-					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
-				}
-				break;
-			case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
-				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
-					fprintf(stderr, "[AURORAOS] Set content orientation to Landscape Flipped\n");
-					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
-				}
-				break;
-			}
-		} else { // portrait
-			switch(orientation) {
-			case SDL_ORIENTATION_PORTRAIT:
-				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
-					fprintf(stderr, "[AURORAOS] Set content orientation to Portrait\n");
-					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
-				}
-				break;
-			case SDL_ORIENTATION_PORTRAIT_FLIPPED:
-				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
-					fprintf(stderr, "[AURORAOS] Set content orientation to Portrait but rotated\n");
-					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_180);
-				}
-				break;
-			}
-		}
-	}
-#else
+#ifndef LOVE_AURORAOS
 	if (width == 0 || height == 0)
 #endif
 	{
@@ -500,7 +461,7 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 #ifdef LOVE_ANDROID
 	f.fstype = FULLSCREEN_DESKTOP;
 #elif defined(LOVE_AURORAOS)
-	if( window && context )
+	if(window && context)
 		return true;
 	f.fstype = FULLSCREEN_DESKTOP;
 	f.centered = false;
@@ -572,6 +533,49 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 	if (!createWindowAndContext(x, y, width, height, sdlflags, f.msaa, f.stencil, f.depth))
 		return false;
+
+#ifdef LOVE_AURORAOS // or if we are in Sailfish - fullscreen
+	{ // set content rotation
+		struct SDL_SysWMinfo wmInfo;
+		SDL_VERSION(&wmInfo.version);
+		int orientation = SDL_GetDisplayOrientation(f.display);
+		if (f.minwidth > f.minheight) { // landscape
+			switch(orientation) {
+			case SDL_ORIENTATION_LANDSCAPE:
+			case SDL_ORIENTATION_PORTRAIT:
+				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
+					fprintf(stderr, "[AURORAOS] Set content orientation to Landscape\n");
+					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_90);
+				}
+				break;
+			case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
+			case SDL_ORIENTATION_PORTRAIT_FLIPPED:
+				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
+					fprintf(stderr, "[AURORAOS] Set content orientation to Landscape Flipped\n");
+					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_270);
+				}
+				break;
+			}
+		} else { // portrait
+			switch(orientation) {
+			case SDL_ORIENTATION_PORTRAIT:
+			case SDL_ORIENTATION_LANDSCAPE:
+				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
+					fprintf(stderr, "[AURORAOS] Set content orientation to Portrait\n");
+					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_NORMAL);
+				}
+				break;
+			case SDL_ORIENTATION_PORTRAIT_FLIPPED:
+			case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
+				if (window && SDL_GetWindowWMInfo(window, &wmInfo)) {
+					fprintf(stderr, "[AURORAOS] Set content orientation to Portrait but rotated\n");
+					wl_surface_set_buffer_transform(wmInfo.info.wl.surface, WL_OUTPUT_TRANSFORM_180);
+				}
+				break;
+			}
+		}
+	}
+#endif
 
 	// Make sure the window keeps any previously set icon.
 	setIcon(icon.get());

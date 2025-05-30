@@ -1,5 +1,5 @@
 --[[
-Copyright (c) 2006-2020 LOVE Development Team
+Copyright (c) 2006-2019 LOVE Development Team
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -20,17 +20,6 @@ freely, subject to the following restrictions:
 
 -- Make sure love exists.
 local love = require("love")
-
-if love.system.getOS() == "AuroraOS" then
-	local lg_getWidth = love.graphics.getWidth
-	local lg_getDimensions = love.graphics.getDimensions
-	love.graphics.getWidth = love.graphics.getHeight
-	love.graphics.getHeight = lg_getWidth
-	love.graphics.getDimensions = function () 
-		h, w = lg_getDimensions()
-		return w,h
-	end
-end
 
 function love.nogame()
 

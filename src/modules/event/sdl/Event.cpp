@@ -98,9 +98,6 @@ static int SDLCALL watchAppEvents(void * /*udata*/, SDL_Event *event)
 	default:
 		break;
 	}
-#ifdef LOVE_AURORAOS
-	// fprintf(stderr, "SDL_APP Event: %i\n", event->type);
-#endif
 	return 1;
 }
 
@@ -407,7 +404,6 @@ Message *Event::convert(const SDL_Event &e)
 				int width;
 				int height;
 				w->getWindow(width, height, settings);
-				// fprintf(stderr, "[AURORAOS] Resizeable: %s Min size: %ix%i\n", (settings.resizable ? "true" : "false"), settings.minwidth,  settings.minheight);
 				// if( settings.resizable ) {
 				if( settings.minwidth > settings.minheight ) {
 					allowed_orientation = 1;

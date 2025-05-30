@@ -250,6 +250,9 @@ int main(int argc, char **argv)
 			   "LOVE library is version %s\n", LOVE_VERSION_STRING, love_version());
 		return 1;
 	}
+#ifdef LOVE_AURORAOS
+	setenv("PULSE_PROP_media.role", "x-maemo", 1);
+#endif 
 
 	int retval = 0;
 	DoneAction done = DONE_QUIT;

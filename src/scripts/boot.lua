@@ -185,6 +185,7 @@ end
 local create_canvas = function () end -- when need new resolution for canvas
 local set_canvas = function () end -- when canvas is already exists
 local main_canvas = nil -- canvas handler
+local canvas_size = { width = 1, height = 1 } -- calculated size before canvas created
 local prev_orientation = "portrait"
 local auroraos_init = nil -- init function 
 local lg_getWidth, lg_getHeight = nil, nil
@@ -192,46 +193,99 @@ local lg_setCanvas = nil
 local lg_setColor = nil
 local lg_clear = nil
 local lg_getDimensions = nil
+local lw_getDesktopDimensions = nil
+local lw_getFullscreenModes = nil
+local lw_getMode = nil
+-- mouse handlers
+local lm_getPosition = nil
+local lm_getX = nil
+local lm_getY = nil
+-- touch handlers
+local lt_getPosition = nil
 
 local lv_system = require("love.system")
-if lv_system.getOS() == "AuroraOS" then
-	print("Sailfish init: AuroraOS detected")
+
+if lv_system.getOS() == "AuroraOS" or true then
+	print("AuroraOS init: AuroraOS detected")
 	love.auroraos = {
 		begin_draw = function () end,
 		end_draw = function () end,
 		convert_xy = function (x,y) return x,y;  end,
 		convert_dxdy = function (x,y) return x,y;  end,
 		swap_xy = function (x,y) return y,x; end,
-		screen = {x = 0, y = 0, w = 1, h = 1, scale = 0}
+		screen = {
+			x = 0,
+			y = 0,
+			w = 1,
+			h = 1,
+			scale = 0
+		}
 	}
 	-- set callbacks for functions
 	require("love.graphics")
 	require("love.window")
 	require("love.touch")
+	require("love.mouse")
 
 	lg_getWidth = love.graphics.getWidth
 	lg_getHeight = love.graphics.getHeight
 	lg_getDimensions = love.graphics.getDimensions
-	lg_getDesktopDimensions = love.window.getDesktopDimensions
+	lw_getDesktopDimensions = love.window.getDesktopDimensions
+	lw_getFullscreenModes = love.window.getFullscreenModes
 	lg_setCanvas = love.graphics.setCanvas
 	lg_setColor = love.graphics.setColor
 	lg_clear = love.graphics.clear
 	lt_getPosition = love.touch.getPosition
+	lw_getMode = love.window.getMode
+	lm_getPosition = love.mouse.getPosition
+	lm_getX = love.mouse.getX
+	lm_getY = love.mouse.getY
 
 	auroraos_init = function () 
+		print("AuroraOS Init")
 		local current_orientation = love.window.getDisplayOrientation()
-		-- print("[AURORAOS] Current orientation: ", current_orientation)
+		
 		if current_orientation ~= "portrait" and current_orientation ~= "portraitflipped" then
-			if lg_getWidth() < lg_getHeight() then
-				love.graphics.getWidth = lg_getHeight
-				love.graphics.getHeight = lg_getWidth
-				love.graphics.getDimensions = function ()
-					local h,w = lg_getDimensions()
-					return w,h
+			local w,h, flags = lw_getMode()
+
+			if flags.minwidth > flags.minheight then
+				local max = math.max(w,h)
+				local min = math.min(w,h)
+				local c = math.max(flags.minwidth/max, flags.minheight/min)
+				flags.minwidth = max * c
+				flags.minheight = min * c
+			else
+				local max = math.max(w,h)
+				local min = math.min(w,h)
+				local c = math.max(flags.minwidth/min, flags.minheight/max)
+				flags.minwidth = min * c
+				flags.minheight = max * c
+			end
+			canvas_size.width = flags.minwidth
+			canvas_size.height = flags.minheight
+
+			if w < h then
+				love.graphics.getWidth = function () 
+					return canvas_size.width
 				end
-				love.window.getDesktopDimensions = function ()
-					local h,w = lg_getDesktopDimensions() 
-					return w,h
+				love.graphics.getHeight = function () 
+					return canvas_size.height
+				end
+				love.graphics.getDimensions = function ()
+					return canvas_size.width, canvas_size.height
+				end
+				love.window.getDesktopDimensions = function (display)
+					return canvas_size.width, canvas_size.height
+				end
+				love.window.getMode = function () 
+					local h,w, flags = lw_getMode()
+					return canvas_size.width, canvas_size.height, flags
+				end
+				love.window.getFullscreenModes = function (displayindex)
+					local modes = {
+						{ width = canvas_size.width, height = canvas_size.height}
+					}
+					return modes
 				end
 			end
 		end
@@ -248,7 +302,17 @@ if lv_system.getOS() == "AuroraOS" then
 	love.touch.getPosition = function (...) 
 		return love.auroraos.convert_xy( lt_getPosition(...) )
 	end
-	
+	love.mouse.getPosition = function ()
+		return love.auroraos.convert_xy( lm_getPosition() )
+	end
+	love.mouse.getX = function ()
+		local x, y = love.auroraos.convert_xy(lm_getX(), 0)
+		return x
+	end
+	love.mouse.getY = function ()
+		local x, y = love.auroraos.convert_xy(0, lm_getY())
+		return y
+	end
 
 
 	set_canvas = function ()
@@ -257,17 +321,26 @@ if lv_system.getOS() == "AuroraOS" then
 	end
 
 	create_canvas = function () 
-		 -- portrait canvas 
-		local width = lg_getWidth()
-		local height = lg_getHeight()
-		-- local o = love.window.getDisplayOrientation()
-		-- update_allowed_orientations(love.window._resizeable)
+		local width,height, flags = lw_getMode()
+		
 		local current_orientation = love.window.getDisplayOrientation() --"portrait"
-		-- print("[AURORAOS] orientation: "..current_orientation)
+		
+		if flags.minwidth > flags.minheight then
+			if current_orientation == "portrait" or current_orientation == "portraitflipped" then
+				current_orientation = "landscape"
+			end
+		else 
+			if current_orientation == "landscape" or current_orientation == "landscapeflipped" then
+				current_orientation = "portrait"
+			end
+		end
+		
 		if current_orientation  == "landscape" or current_orientation == "landscapeflipped" then
 			width = lg_getHeight()
 			height = lg_getWidth()
 		end
+
+		local quad = love.graphics.newQuad(0, 0, width, height, width, height)
 
 		if current_orientation == "portrait" or current_orientation == "portraitflipped" then
 			love.auroraos.convert_xy = function (x,y)
@@ -281,17 +354,18 @@ if lv_system.getOS() == "AuroraOS" then
 			love.graphics.getDimensions = function ()
 				return lg_getDimensions()
 			end
-			love.window.getDesktopDimensions = function ()
-				return lg_getDesktopDimensions()
-			end
+			love.window.getDesktopDimensions = lw_getDesktopDimensions
+			love.window.getMode = lw_getMode
+
 			love.auroraos.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
-				love.graphics.draw(main_canvas, 0, 0, 0)
+				-- love.graphics.draw(main_canvas, quad, 0, 0, 0, love.auroraos.screen.scale, love.auroraos.screen.scale)
+				love.graphics.draw(main_canvas, 0, 0, 0, love.auroraos.screen.scale, love.auroraos.screen.scale, 0, 0)
 			end
 			
-			local w,h, flags = love.window.getMode()
+			local w,h, flags = lw_getMode()
 			love.auroraos.screen.scale = math.min(width/flags.minwidth, height/flags.minheight)
 			love.auroraos.screen.w = math.floor(flags.minwidth * love.auroraos.screen.scale)
 			love.auroraos.screen.h = math.floor(flags.minheight * love.auroraos.screen.scale)
@@ -300,49 +374,74 @@ if lv_system.getOS() == "AuroraOS" then
 			if not main_canvas or main_canvas:getWidth() ~= flags.minwidth or main_canvas:getHeight() ~= flags.minheight then
 				main_canvas = nil
 				main_canvas = love.graphics.newCanvas(flags.minwidth, flags.minheight);
-				print("[AURORAOS] Create canvas", flags.minwidth, flags.minheight)
+				-- print("[AURORAOS] Create canvas", flags.minwidth, flags.minheight)
 			end
-		-- elseif current_orientation == "portraitflipped" then
-		-- 	love.auroraos.convert_xy = function (x,y)
-		-- 		return lg_getWidth() - x,lg_getHeight() - y
-		-- 	end
-		-- 	love.graphics.getWidth = lg_getWidth
-		-- 	love.graphics.getHeight = lg_getHeight
-		-- 	love.auroraos.end_draw = function ()
-		-- 		love.graphics.setCanvas()
-		-- 		love.graphics.draw(main_canvas, lg_getWidth(), lg_getHeight(), math.pi, 1, 1)
-		-- 	end
 		elseif current_orientation == "landscapeflipped" then
+			local w,h, flags = lw_getMode()
+
+			if flags.minwidth > flags.minheight then
+				local max = math.max(w,h)
+				local min = math.min(w,h)
+				local c = math.max(flags.minwidth/max, flags.minheight/min)
+				flags.minwidth = max * c
+				flags.minheight = min * c
+			else
+				local max = math.max(w,h)
+				local min = math.min(w,h)
+				local c = math.max(flags.minwidth/min, flags.minheight/max)
+				flags.minwidth = min * c
+				flags.minheight = max * c
+			end
+			canvas_size.width = flags.minwidth
+			canvas_size.height = flags.minheight
+			
 			love.auroraos.convert_xy = function (x,y)
-				return y, lg_getWidth() - x
+				return (y - love.auroraos.screen.y) / love.auroraos.screen.scale
+				, (lg_getWidth() - x - love.auroraos.screen.x) / love.auroraos.screen.scale
+				-- return y - love.auroraos.screen.y, lg_getWidth() - x - love.auroraos.screen.x
 			end
 			love.auroraos.convert_dxdy = function (x,y)
-				return y,-x
+				return y / love.auroraos.screen.scale,-x / love.auroraos.screen.scale
 			end
-			love.graphics.getWidth = lg_getHeight
-			love.graphics.getHeight = lg_getWidth
+			love.graphics.getWidth = function () 
+				return canvas_size.width
+			end
+			love.graphics.getHeight = function () 
+				return canvas_size.height
+			end
 			love.graphics.getDimensions = function ()
-				local h,w = lg_getDimensions()
-				return w,h
+				return canvas_size.width, canvas_size.height
 			end
-			love.window.getDesktopDimensions = function ()
-				local h,w = lg_getDesktopDimensions() 
-				return w,h
+			love.window.getDesktopDimensions = function (display)
+				return canvas_size.width, canvas_size.height
+			end
+			love.window.getMode = function () 
+				local h,w, flags = lw_getMode()
+				return canvas_size.width, canvas_size.height, flags
+			end
+			love.window.getFullscreenModes = function (displayindex)
+				local modes = {
+					{ width = canvas_size.width, height = canvas_size.height}
+				}
+				return modes
 			end
 			love.auroraos.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
-				love.graphics.draw(main_canvas, 
+				love.graphics.draw(main_canvas,
 									love.auroraos.screen.x + lg_getWidth(),
 									love.auroraos.screen.y,
 									math.pi * 0.5,
-									love.auroraos.screen.scale, love.auroraos.screen.scale)
+									love.auroraos.screen.scale,
+									love.auroraos.screen.scale,
+									0, -- offset x 
+									0  -- offset y 
+								)
 			end
-			-- if prev_orientation ~= "landscape" or prev_orientation ~= "landscapeflipped" then
-			local w,h, flags = love.window.getMode()
-			print("[AURORAOS] Landscape inverted minsize is ", flags.minwidth, flags.minheight)
-			love.auroraos.screen.scale = math.min(width/flags.minwidth, height/flags.minheight)
+	
+
+			love.auroraos.screen.scale = math.min(width / flags.minwidth, height / flags.minheight)
 			love.auroraos.screen.w = math.floor(flags.minwidth * love.auroraos.screen.scale)
 			love.auroraos.screen.h = math.floor(flags.minheight * love.auroraos.screen.scale)
 			love.auroraos.screen.x = math.floor((height - love.auroraos.screen.h) * 0.5)
@@ -351,39 +450,71 @@ if lv_system.getOS() == "AuroraOS" then
 			if not main_canvas or main_canvas:getWidth() ~= flags.minwidth or main_canvas:getHeight() ~= flags.minheight then
 				main_canvas = nil
 				main_canvas = love.graphics.newCanvas(flags.minwidth, flags.minheight);
-				print("[AURORAOS] Create canvas", flags.minwidth, flags.minheight)
 			end
 		elseif current_orientation == "landscape" then
+			local w,h, flags = lw_getMode()
+
+			if flags.minwidth > flags.minheight then
+				local max = math.max(w,h)
+				local min = math.min(w,h)
+				local c = math.max(flags.minwidth/max, flags.minheight/min)
+				flags.minwidth = max * c
+				flags.minheight = min * c
+			else
+				local max = math.max(w,h)
+				local min = math.min(w,h)
+				local c = math.max(flags.minwidth/min, flags.minheight/max)
+				flags.minwidth = min * c
+				flags.minheight = max * c
+			end
+			canvas_size.width = flags.minwidth
+			canvas_size.height = flags.minheight
+
 			love.auroraos.convert_xy = function (x,y)
-				return lg_getHeight() - y, x
+				return (lg_getHeight() - y + love.auroraos.screen.y) / love.auroraos.screen.scale, 
+					   (x - love.auroraos.screen.x) / love.auroraos.screen.scale
 			end
 			love.auroraos.convert_dxdy = function (x,y)
-				return -y,x
+				return -y / love.auroraos.screen.scale,x / love.auroraos.screen.scale
 			end
-			love.graphics.getWidth = lg_getHeight
-			love.graphics.getHeight = lg_getWidth
+			love.graphics.getWidth = function () 
+				return canvas_size.width
+			end
+			love.graphics.getHeight = function () 
+				return canvas_size.height
+			end
+
 			love.graphics.getDimensions = function ()
-				local h,w = lg_getDimensions()
-				return w,h
+				return canvas_size.width, canvas_size.height
 			end
-			love.window.getDesktopDimensions = function ()
-				local h,w = lg_getDesktopDimensions() 
-				return w,h
+			love.window.getDesktopDimensions = function (display)
+				return canvas_size.width, canvas_size.height
+			end
+			love.window.getMode = function ()
+				return canvas_size.width, canvas_size.height, flags
+			end
+
+			love.window.getFullscreenModes = function (displayindex)
+				local modes = {
+					{ width = canvas_size.width, height = canvas_size.height}
+				}
+				return modes
 			end
 			love.auroraos.end_draw = function ()
 				lg_setCanvas()
 				lg_setColor(1,1,1)
 				lg_clear(0,0,0,1)
-				love.graphics.draw(main_canvas, 
+				love.graphics.draw(main_canvas,
 					love.auroraos.screen.x,
 					love.auroraos.screen.y + lg_getHeight(),
 					math.pi * 1.5,
 					love.auroraos.screen.scale,
-					love.auroraos.screen.scale)
+					love.auroraos.screen.scale,
+					0, -- offset x
+					0  -- offset y
+				)
 			end
 
-			local w,h, flags = love.window.getMode()
-			print("[AURORAOS] Landscape minsize is ", flags.minwidth, flags.minheight)
 			love.auroraos.screen.scale = math.min(width/flags.minwidth, height/flags.minheight)
 			love.auroraos.screen.w = math.floor(flags.minwidth * love.auroraos.screen.scale)
 			love.auroraos.screen.h = math.floor(flags.minheight * love.auroraos.screen.scale)
@@ -393,7 +524,7 @@ if lv_system.getOS() == "AuroraOS" then
 			if not main_canvas or main_canvas:getWidth() ~= flags.minwidth or main_canvas:getHeight() ~= flags.minheight then
 				main_canvas = nil
 				main_canvas = love.graphics.newCanvas(flags.minwidth, flags.minheight);
-				print("[AURORAOS] Create canvas", flags.minwidth, flags.minheight)
+				print("[AURORAOS] Create canvas landscape", flags.minwidth, flags.minheight)
 			end
 		end
 		prev_orientation = current_orientation
@@ -986,10 +1117,8 @@ function love.errhand(msg)
 		local width = 0
 		if (lg_setCanvas ~= nil) then width = lg_getWidth() else width = love.graphics.getWidth() end
 		if (lg_setCanvas ~= nil) then lg_setCanvas() else love.graphics.setCanvas() end
-		-- love.auroraos.begin_draw()
 		love.graphics.clear(89/255, 157/255, 220/255)
 		love.graphics.printf(p, pos, pos, width - pos)
-		-- love.auroraos.end_draw()
 		love.graphics.present()
 	end
 
