@@ -322,8 +322,8 @@ if lv_system.getOS() == "AuroraOS" or true then
 			local max = math.max(width, height)
 			local min = math.min(width, height)
 			local c = math.max(flags.minwidth/max, flags.minheight/min)
-			flags.minwidth = max * c
-			flags.minheight = min * c
+			flags.minwidth = math.floor(max * c)
+			flags.minheight = math.floor(min * c)
 			if current_orientation == "portrait" or current_orientation == "portraitflipped" then
 				current_orientation = "landscape"
 			end
@@ -331,8 +331,8 @@ if lv_system.getOS() == "AuroraOS" or true then
 			local max = math.max(width, height)
 			local min = math.min(width, height)
 			local c = math.max(flags.minwidth/min, flags.minheight/max)
-			flags.minwidth = min * c
-			flags.minheight = max * c
+			flags.minwidth = math.floor(min * c)
+			flags.minheight = math.floor(max * c)
 			if current_orientation == "landscape" or current_orientation == "landscapeflipped" then
 				current_orientation = "portrait"
 			end
@@ -363,11 +363,12 @@ if lv_system.getOS() == "AuroraOS" or true then
 		end
 
 		if current_orientation == "portrait" or current_orientation == "portraitflipped" then
+
 			love.auroraos.convert_xy = function (x,y)
-				return x,y
+				return x / love.auroraos.screen.scale, y / love.auroraos.screen.scale
 			end
 			love.auroraos.convert_dxdy = function (x,y)
-				return x,y
+				return x / love.auroraos.screen.scale, y / love.auroraos.screen.scale
 			end
 
 			love.auroraos.end_draw = function ()
@@ -387,10 +388,10 @@ if lv_system.getOS() == "AuroraOS" or true then
 			if not main_canvas or main_canvas:getWidth() ~= flags.minwidth or main_canvas:getHeight() ~= flags.minheight then
 				main_canvas = nil
 				main_canvas = love.graphics.newCanvas(canvas_size.width, canvas_size.height);
-				print("[AURORAOS] Create canvas portrait", canvas_size.width, canvas_size.height)
+				print("[AURORAOS] Create canvas ", current_orientation, canvas_size.width, canvas_size.height)
 			end
 		elseif current_orientation == "landscapeflipped" then
-			
+
 			love.auroraos.convert_xy = function (x,y)
 				return (y - love.auroraos.screen.y) / love.auroraos.screen.scale
 				, (lg_getWidth() - x - love.auroraos.screen.x) / love.auroraos.screen.scale
@@ -484,8 +485,6 @@ if lv_system.getOS() == "AuroraOS" or true then
 	else
 		love.auroraos.begin_draw = set_canvas
 	end
--- else 
-	-- print("System is "+lv_system.getOS())
 end
 lv_system = nil
 
