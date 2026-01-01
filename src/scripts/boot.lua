@@ -324,7 +324,9 @@ if lv_system.getOS() == "AuroraOS" or true then
 			local c = math.max(flags.minwidth/max, flags.minheight/min)
 			flags.minwidth = math.floor(max * c)
 			flags.minheight = math.floor(min * c)
-			if current_orientation == "portrait" or current_orientation == "portraitflipped" then
+			if current_orientation == "portrait" then
+				current_orientation = "landscapeflipped"
+			elseif current_orientation == "portraitflipped" then
 				current_orientation = "landscape"
 			end
 		else
@@ -333,7 +335,9 @@ if lv_system.getOS() == "AuroraOS" or true then
 			local c = math.max(flags.minwidth/min, flags.minheight/max)
 			flags.minwidth = math.floor(min * c)
 			flags.minheight = math.floor(max * c)
-			if current_orientation == "landscape" or current_orientation == "landscapeflipped" then
+			if current_orientation == "landscape" then
+				current_orientation = "portraitflipped"
+			elseif current_orientation == "landscapeflipped" then
 				current_orientation = "portrait"
 			end
 		end
