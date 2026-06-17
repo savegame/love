@@ -73,6 +73,11 @@ public:
 	// is only active during actual drawing -- not across event.pump().
 	void ensureBound(graphics::Graphics *gfx);
 
+	// If the internal canvas is the active canvas, unbind it (no-op otherwise).
+	// Called from sites that throw "Canvas active" guards (pump/setMode/...).
+	// Returns true if it actually unbound something.
+	bool unbindIfOurs(graphics::Graphics *gfx);
+
 	// Returns true if it handled the default-canvas request.
 	bool interceptSetCanvasDefault(graphics::Graphics *gfx);
 

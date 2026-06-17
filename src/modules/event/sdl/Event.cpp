@@ -176,7 +176,13 @@ void Event::exceptionIfInRenderPass(const char *name)
 	// is active.
 	auto gfx = Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS);
 	if (gfx != nullptr && gfx->isCanvasActive())
+	{
+#ifdef LOVE_AURORAOS
+		if (auroraos::Presenter::getInstance().unbindIfOurs(gfx))
+			return;
+#endif
 		throw love::Exception("%s cannot be called while a Canvas is active in love.graphics.", name);
+	}
 }
 
 Message *Event::convert(const SDL_Event &e)

@@ -433,7 +433,12 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 		graphics.set(Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS));
 
 	if (graphics.get() && graphics->isCanvasActive())
+	{
+#ifdef LOVE_AURORAOS
+		if (!love::auroraos::Presenter::getInstance().unbindIfOurs(graphics.get()))
+#endif
 		throw love::Exception("love.window.setMode cannot be called while a Canvas is active in love.graphics.");
+	}
 
 	WindowSettings f;
 
@@ -684,7 +689,12 @@ void Window::close(bool allowExceptions)
 	if (graphics.get())
 	{
 		if (allowExceptions && graphics->isCanvasActive())
+		{
+#ifdef LOVE_AURORAOS
+			if (!love::auroraos::Presenter::getInstance().unbindIfOurs(graphics.get()))
+#endif
 			throw love::Exception("love.window.close cannot be called while a Canvas is active in love.graphics.");
+		}
 
 		graphics->unSetMode();
 	}
@@ -714,7 +724,12 @@ bool Window::setFullscreen(bool fullscreen, Window::FullscreenType fstype)
 		return false;
 
 	if (graphics.get() && graphics->isCanvasActive())
+	{
+#ifdef LOVE_AURORAOS
+		if (!love::auroraos::Presenter::getInstance().unbindIfOurs(graphics.get()))
+#endif
 		throw love::Exception("love.window.setFullscreen cannot be called while a Canvas is active in love.graphics.");
+	}
 
 	WindowSettings newsettings = settings;
 	newsettings.fullscreen = fullscreen;

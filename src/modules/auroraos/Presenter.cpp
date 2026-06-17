@@ -315,6 +315,17 @@ void Presenter::ensureBound(graphics::Graphics *gfx)
 	reentry = false;
 }
 
+bool Presenter::unbindIfOurs(graphics::Graphics *gfx)
+{
+	if (!enabled || reentry) return false;
+	if (!internalCanvas) return false;
+	if (!isInternalCanvasBound(gfx)) return false;
+	reentry = true;
+	gfx->setCanvas();
+	reentry = false;
+	return true;
+}
+
 void Presenter::beforePresent(graphics::Graphics *gfx)
 {
 	if (!enabled) return;
