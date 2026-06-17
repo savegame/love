@@ -320,9 +320,11 @@ void Presenter::beforePresent(graphics::Graphics *gfx)
 	if (!enabled) return;
 	if (!isInternalCanvasBound(gfx)) return;
 
+	// Keep reentry set for the whole blit: setCanvas / origin / clear all run
+	// through hooks that would otherwise re-attach the internal canvas.
 	reentry = true;
+
 	gfx->setCanvas(); // truly unbind — clear() / draw() below go to default FBO
-	reentry = false;
 
 	// Save state we mutate.
 	gfx->push(graphics::Graphics::STACK_ALL);
@@ -355,6 +357,8 @@ void Presenter::beforePresent(graphics::Graphics *gfx)
 	gfx->draw(internalCanvas, m);
 
 	gfx->pop();
+
+	reentry = false;
 }
 
 // ---------------------------------------------------------------------------
