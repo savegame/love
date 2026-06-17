@@ -93,6 +93,9 @@ void Presenter::setupForWindow(SDL_Window *w, int requestedW, int requestedH)
 
 	lastSdlOrientation = SDL_GetDisplayOrientation(displayIndex);
 
+	SDL_Log("[AURORAOS] setupForWindow: requested=%dx%d displayIdx=%d displayBounds=%dx%d nativeLandscape=%d windowSize=%dx%d sdlOrient=%d",
+		requestedW, requestedH, displayIndex, displayW, displayH, (int)nativeLandscape, windowW, windowH, lastSdlOrientation);
+
 	// Drop existing canvas — its size or the rotation policy may have changed.
 	destroyCanvas();
 
@@ -218,6 +221,10 @@ void Presenter::recompute()
 	// We're "enabled" — always, on AuroraOS, since fullscreen surface and
 	// rotation/scale handling is a constant requirement.
 	enabled = true;
+
+	SDL_Log("[AURORAOS] recompute: logical=%dx%d window=%dx%d contentLandscape=%d windowAxisLandscape=%d baseSteps=%d flipped=%d rotationSteps=%d dst=(%.1f,%.1f %.1fx%.1f) scale=%d orientPref=%d",
+		logicalW, logicalH, windowW, windowH, (int)contentLandscape, (int)windowAxisLandscape,
+		baseSteps, (int)flipped, rotationSteps, dstX, dstY, dstW, dstH, (int)scale, (int)orientPref);
 }
 
 void Presenter::applyBufferTransform()
@@ -243,6 +250,7 @@ void Presenter::applyBufferTransform()
 	default: t = WL_OUTPUT_TRANSFORM_NORMAL; break;
 	}
 	wl_surface_set_buffer_transform(wm.info.wl.surface, t);
+	SDL_Log("[AURORAOS] applyBufferTransform: wl_transform=%u rotationSteps=%d", t, rotationSteps);
 
 	// SDL also looks at this hint for QtWayland integration.
 	const char *h = "primary";
@@ -298,6 +306,7 @@ bool Presenter::interceptSetCanvasDefault(graphics::Graphics *gfx)
 	graphics::Graphics::RenderTarget rt(internalCanvas, 0, 0);
 	gfx->setCanvas(rt, 0);
 	reentry = false;
+	SDL_Log("[AURORAOS] interceptSetCanvasDefault: substituted internalCanvas=%p", (void*)internalCanvas);
 	return true;
 }
 
@@ -305,31 +314,49 @@ void Presenter::ensureBound(graphics::Graphics *gfx)
 {
 	if (!enabled || reentry) return;
 	ensureCanvas(gfx);
-	if (!internalCanvas) return;
+	if (!internalCanvas) { SDL_Log("[AURORAOS] ensureBound: no internalCanvas"); return; }
 	if (isInternalCanvasBound(gfx)) return;
 	// Don't steal an unrelated user canvas.
-	if (gfx->isCanvasActive()) return;
+	if (gfx->isCanvasActive()) {
+		SDL_Log("[AURORAOS] ensureBound: user canvas already bound, skipping");
+		return;
+	}
 	reentry = true;
 	graphics::Graphics::RenderTarget rt(internalCanvas, 0, 0);
 	gfx->setCanvas(rt, 0);
 	reentry = false;
+	SDL_Log("[AURORAOS] ensureBound: bound internalCanvas=%p", (void*)internalCanvas);
 }
 
 bool Presenter::unbindIfOurs(graphics::Graphics *gfx)
 {
+	bool active = gfx ? gfx->isCanvasActive() : false;
+	bool ours = isInternalCanvasBound(gfx);
+	SDL_Log("[AURORAOS] unbindIfOurs: enabled=%d reentry=%d internalCanvas=%p isCanvasActive=%d isOurs=%d",
+		(int)enabled, (int)reentry, (void*)internalCanvas, (int)active, (int)ours);
 	if (!enabled || reentry) return false;
 	if (!internalCanvas) return false;
-	if (!isInternalCanvasBound(gfx)) return false;
+	if (!ours) return false;
 	reentry = true;
 	gfx->setCanvas();
 	reentry = false;
+	SDL_Log("[AURORAOS] unbindIfOurs: unbound");
 	return true;
 }
 
 void Presenter::beforePresent(graphics::Graphics *gfx)
 {
 	if (!enabled) return;
-	if (!isInternalCanvasBound(gfx)) return;
+	if (!isInternalCanvasBound(gfx)) {
+		static int skipLog = 0;
+		if ((skipLog++ % 60) == 0)
+			SDL_Log("[AURORAOS] beforePresent: skipped (internalCanvas not bound, %p)", (void*)internalCanvas);
+		return;
+	}
+	static int frameLog = 0;
+	if ((frameLog++ % 60) == 0)
+		SDL_Log("[AURORAOS] beforePresent: rotationSteps=%d window=%dx%d dst=(%.1f,%.1f %.1fx%.1f)",
+			rotationSteps, windowW, windowH, dstX, dstY, dstW, dstH);
 
 	// Keep reentry set for the whole blit: setCanvas / origin / clear all run
 	// through hooks that would otherwise re-attach the internal canvas.
