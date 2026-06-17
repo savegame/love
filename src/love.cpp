@@ -263,6 +263,11 @@ static DoneAction runlove(int argc, char **argv, int &retval)
 
 int main(int argc, char **argv)
 {
+#ifdef LOVE_AURORAOS
+	// PulseAudio needs the media role to play nicely with sandbox policy.
+	setenv("PULSE_PROP_media.role", "x-maemo", 0);
+#endif
+
 	if (strcmp(LOVE_VERSION_STRING, love_version()) != 0)
 	{
 		printf("Version mismatch detected!\nLOVE binary is version %s\n"

@@ -73,6 +73,17 @@ if(NOT LOVE_MPG123)
 	add_definitions(-DLOVE_NOMPG123)
 endif()
 
+option(LOVE_AURORAOS "Build for AuroraOS / SailfishOS" FALSE)
+set(LOVE_AURORAOS_APPDATA "" CACHE STRING "AuroraOS sandbox appdata folder name (relative to ~/.local/share/), e.g. ru.example.mygame/love")
+
+if(LOVE_AURORAOS)
+	add_definitions(-DLOVE_AURORAOS)
+	if(LOVE_AURORAOS_APPDATA)
+		add_definitions(-DLOVE_AURORAOS_APPDATA="${LOVE_AURORAOS_APPDATA}")
+	endif()
+	message(STATUS "AuroraOS build: enabled (appdata='${LOVE_AURORAOS_APPDATA}')")
+endif()
+
 message(STATUS "Target platform: ${LOVE_TARGET_PLATFORM}")
 
 if(POLICY CMP0072)
@@ -428,6 +439,19 @@ source_group("modules\\data" FILES ${LOVE_SRC_MODULE_DATA})
 #
 # love.event
 #
+
+#
+# love.auroraos (internal: rotation/scaling presenter, only built with LOVE_AURORAOS)
+#
+
+set(LOVE_SRC_MODULE_AURORAOS)
+if(LOVE_AURORAOS)
+	set(LOVE_SRC_MODULE_AURORAOS
+		src/modules/auroraos/Presenter.cpp
+		src/modules/auroraos/Presenter.h
+	)
+	source_group("modules\\auroraos" FILES ${LOVE_SRC_MODULE_AURORAOS})
+endif()
 
 set(LOVE_SRC_MODULE_EVENT_ROOT
 	src/modules/event/Event.cpp
@@ -1733,6 +1757,7 @@ set(LOVE_LIB_SRC
 	${LOVE_SRC_COMMON}
 	# Modules
 	${LOVE_SRC_MODULE_AUDIO}
+	${LOVE_SRC_MODULE_AURORAOS}
 	${LOVE_SRC_MODULE_DATA}
 	${LOVE_SRC_MODULE_EVENT}
 	${LOVE_SRC_MODULE_FILESYSTEM}
@@ -1788,6 +1813,10 @@ endif()
 add_library(${LOVE_LIB_NAME} SHARED ${LOVE_LIB_SRC} ${LOVE_RC})
 set_target_properties(${LOVE_LIB_NAME} PROPERTIES C_VISIBILITY_PRESET hidden CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 target_link_libraries(${LOVE_LIB_NAME} ${LOVE_LINK_LIBRARIES} ${LOVE_3P})
+
+if(LOVE_AURORAOS)
+	target_link_libraries(${LOVE_LIB_NAME} wayland-client)
+endif()
 
 if(LOVE_EXTRA_DEPENDECIES)
 	add_dependencies(${LOVE_LIB_NAME} ${LOVE_EXTRA_DEPENDECIES})

@@ -138,6 +138,8 @@ function love.init()
 			y = nil,
 			minwidth = 1,
 			minheight = 1,
+			orientation = nil,    -- AuroraOS: "landscape" | "landscapeflipped" | "portrait" | "portraitflipped" (default: auto)
+			contentScale = nil,   -- AuroraOS: "fit" (default) | "stretch" | "pixel"
 			fullscreen = false,
 			fullscreentype = "desktop",
 			display = 1,
@@ -301,6 +303,9 @@ function love.init()
 		if c.window.icon then
 			assert(love.image, "If an icon is set in love.conf, love.image must be loaded!")
 			love.window.setIcon(love.image.newImageData(c.window.icon))
+		end
+		if love._auroraosSetup then
+			love._auroraosSetup(c.window.orientation, c.window.contentScale)
 		end
 	end
 

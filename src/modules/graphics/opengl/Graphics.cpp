@@ -31,6 +31,10 @@
 #include "Buffer.h"
 #include "ShaderStage.h"
 
+#ifdef LOVE_AURORAOS
+#include "auroraos/Presenter.h"
+#endif
+
 #include "libraries/xxHash/xxhash.h"
 
 // C++
@@ -898,6 +902,10 @@ void Graphics::present(void *screenshotCallbackData)
 	if (!isActive())
 		return;
 
+#ifdef LOVE_AURORAOS
+	love::auroraos::Presenter::getInstance().beforePresent(this);
+#endif
+
 	if (isCanvasActive())
 		throw love::Exception("present cannot be called while a Canvas is active.");
 
@@ -1013,6 +1021,10 @@ void Graphics::present(void *screenshotCallbackData)
 	auto window = getInstance<love::window::Window>(M_WINDOW);
 	if (window != nullptr)
 		window->swapBuffers();
+
+#ifdef LOVE_AURORAOS
+	love::auroraos::Presenter::getInstance().afterPresent(this);
+#endif
 
 	// Reset the per-frame stat counts.
 	drawCalls = 0;

@@ -33,6 +33,10 @@
 #include "common/config.h"
 #include "timer/Timer.h"
 
+#ifdef LOVE_AURORAOS
+#include "auroraos/Presenter.h"
+#endif
+
 #include <cmath>
 
 namespace love
@@ -270,6 +274,11 @@ Message *Event::convert(const SDL_Event &e)
 			windowToDPICoords(&x, &y);
 			windowToDPICoords(&xrel, &yrel);
 
+#ifdef LOVE_AURORAOS
+			auroraos::Presenter::getInstance().convertCoords(x, y);
+			auroraos::Presenter::getInstance().convertDelta(xrel, yrel);
+#endif
+
 			vargs.emplace_back(x);
 			vargs.emplace_back(y);
 			vargs.emplace_back(xrel);
@@ -298,6 +307,10 @@ Message *Event::convert(const SDL_Event &e)
 
 			clampToWindow(&px, &py);
 			windowToDPICoords(&px, &py);
+
+#ifdef LOVE_AURORAOS
+			auroraos::Presenter::getInstance().convertCoords(px, py);
+#endif
 
 			vargs.emplace_back(px);
 			vargs.emplace_back(py);
@@ -346,6 +359,17 @@ Message *Event::convert(const SDL_Event &e)
 			normalizedToDPICoords(&touchinfo.dx, &touchinfo.dy);
 		}
 
+#ifdef LOVE_AURORAOS
+		{
+			double tx = touchinfo.x, ty = touchinfo.y;
+			double tdx = touchinfo.dx, tdy = touchinfo.dy;
+			auroraos::Presenter::getInstance().convertCoords(tx, ty);
+			auroraos::Presenter::getInstance().convertDelta(tdx, tdy);
+			touchinfo.x = tx; touchinfo.y = ty;
+			touchinfo.dx = tdx; touchinfo.dy = tdy;
+		}
+#endif
+
 		// We need to update the love.touch.sdl internal state from here.
 		touchmodule = (touch::sdl::Touch *) Module::getInstance("love.touch.sdl");
 		if (touchmodule)
@@ -391,6 +415,9 @@ Message *Event::convert(const SDL_Event &e)
 	case SDL_DISPLAYEVENT:
 		if (e.display.event == SDL_DISPLAYEVENT_ORIENTATION)
 		{
+#ifdef LOVE_AURORAOS
+			auroraos::Presenter::getInstance().onDisplayOrientation((int) e.display.data1);
+#endif
 			auto orientation = window::Window::ORIENTATION_UNKNOWN;
 			switch ((SDL_DisplayOrientation) e.display.data1)
 			{
@@ -639,6 +666,13 @@ Message *Event::convertWindowEvent(const SDL_Event &e)
 		if (win)
 			win->onSizeChanged(e.window.data1, e.window.data2);
 		break;
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+	case SDL_WINDOWEVENT_DISPLAY_CHANGED:
+#ifdef LOVE_AURORAOS
+		auroraos::Presenter::getInstance().onDisplayChanged();
+#endif
+		break;
+#endif
 	case SDL_WINDOWEVENT_MINIMIZED:
 	case SDL_WINDOWEVENT_RESTORED:
 #ifdef LOVE_ANDROID

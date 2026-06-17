@@ -45,6 +45,11 @@
 #include <SDL.h>
 #endif // LOVE_ANDROID
 
+#ifdef LOVE_AURORAOS
+#include <SDL.h>
+#include "auroraos/Presenter.h"
+#endif // LOVE_AURORAOS
+
 #ifdef LOVE_LEGENDARY_CONSOLE_IO_HACK
 #include <fcntl.h>
 #include <io.h>
@@ -240,7 +245,7 @@ int w__openConsole(lua_State *L);
 int w__setAccelerometerAsJoystick(lua_State *L);
 #endif
 
-#ifdef LOVE_ANDROID
+#if defined(LOVE_ANDROID) || defined(LOVE_AURORAOS)
 static int w_print_sdl_log(lua_State *L)
 {
 	int nargs = lua_gettop(L);
@@ -269,6 +274,18 @@ static int w_print_sdl_log(lua_State *L)
 	}
 
 	SDL_Log("[LOVE] %s", outstring.c_str());
+	return 0;
+}
+#endif // LOVE_ANDROID || LOVE_AURORAOS
+
+#ifdef LOVE_AURORAOS
+static int w__auroraosSetup(lua_State *L)
+{
+	const char *orient = luaL_optstring(L, 1, nullptr);
+	const char *scale  = luaL_optstring(L, 2, nullptr);
+	auto &p = love::auroraos::Presenter::getInstance();
+	if (orient) p.setOrientationPref(orient);
+	if (scale)  p.setContentScale(scale);
 	return 0;
 }
 #endif
@@ -428,8 +445,13 @@ int luaopen_love(lua_State *L)
 	lua_pushstring(L, love::VERSION_CODENAME);
 	lua_setfield(L, -2, "_version_codename");
 
-#ifdef LOVE_ANDROID
+#if defined(LOVE_ANDROID) || defined(LOVE_AURORAOS)
 	lua_register(L, "print", w_print_sdl_log);
+#endif
+
+#ifdef LOVE_AURORAOS
+	lua_pushcfunction(L, w__auroraosSetup);
+	lua_setfield(L, -2, "_auroraosSetup");
 #endif
 
 #ifdef LOVE_LEGENDARY_CONSOLE_IO_HACK
@@ -478,6 +500,8 @@ int luaopen_love(lua_State *L)
 	lua_pushstring(L, "iOS");
 #elif defined(LOVE_ANDROID)
 	lua_pushstring(L, "Android");
+#elif defined(LOVE_AURORAOS)
+	lua_pushstring(L, "AuroraOS");
 #elif defined(LOVE_LINUX)
 	lua_pushstring(L, "Linux");
 #else

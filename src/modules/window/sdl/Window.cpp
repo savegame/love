@@ -31,6 +31,10 @@
 #include "common/ios.h"
 #endif
 
+#ifdef LOVE_AURORAOS
+#include "auroraos/Presenter.h"
+#endif
+
 // C++
 #include <iostream>
 #include <vector>
@@ -554,6 +558,10 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	love::android::setImmersive(fullscreen);
 #endif
 
+#ifdef LOVE_AURORAOS
+	love::auroraos::Presenter::getInstance().setupForWindow(window, width, height);
+#endif
+
 	return true;
 }
 
@@ -573,6 +581,10 @@ bool Window::onSizeChanged(int width, int height)
 		fromPixels((double) pixelWidth, (double) pixelHeight, scaledw, scaledh);
 		graphics->setViewportSize((int) scaledw, (int) scaledh, pixelWidth, pixelHeight);
 	}
+
+#ifdef LOVE_AURORAOS
+	love::auroraos::Presenter::getInstance().onDisplayChanged();
+#endif
 
 	return true;
 }
@@ -1112,11 +1124,21 @@ bool Window::isMouseGrabbed() const
 
 int Window::getWidth() const
 {
+#ifdef LOVE_AURORAOS
+	auto &p = love::auroraos::Presenter::getInstance();
+	if (p.isEnabled())
+		return p.getLogicalWidth();
+#endif
 	return windowWidth;
 }
 
 int Window::getHeight() const
 {
+#ifdef LOVE_AURORAOS
+	auto &p = love::auroraos::Presenter::getInstance();
+	if (p.isEnabled())
+		return p.getLogicalHeight();
+#endif
 	return windowHeight;
 }
 

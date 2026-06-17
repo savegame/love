@@ -21,6 +21,9 @@
 // LOVE
 #include "Graphics.h"
 #include "Buffer.h"
+#ifdef LOVE_AURORAOS
+#include "auroraos/Presenter.h"
+#endif
 #include "math/MathModule.h"
 #include "data/DataModule.h"
 #include "Polyline.h"
@@ -314,11 +317,21 @@ bool Graphics::validateShader(bool gles, const std::string &vertex, const std::s
 
 int Graphics::getWidth() const
 {
+#ifdef LOVE_AURORAOS
+	auto &p = love::auroraos::Presenter::getInstance();
+	if (p.isEnabled())
+		return p.getLogicalWidth();
+#endif
 	return width;
 }
 
 int Graphics::getHeight() const
 {
+#ifdef LOVE_AURORAOS
+	auto &p = love::auroraos::Presenter::getInstance();
+	if (p.isEnabled())
+		return p.getLogicalHeight();
+#endif
 	return height;
 }
 
@@ -729,6 +742,11 @@ void Graphics::setCanvas(const RenderTargets &rts)
 
 void Graphics::setCanvas()
 {
+#ifdef LOVE_AURORAOS
+	if (love::auroraos::Presenter::getInstance().interceptSetCanvasDefault(this))
+		return;
+#endif
+
 	DisplayState &state = states.back();
 
 	if (state.renderTargets.colors.empty() && state.renderTargets.depthStencil.canvas == nullptr)
