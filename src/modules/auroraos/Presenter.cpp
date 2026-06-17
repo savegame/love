@@ -301,11 +301,14 @@ bool Presenter::interceptSetCanvasDefault(graphics::Graphics *gfx)
 	return true;
 }
 
-void Presenter::afterPresent(graphics::Graphics *gfx)
+void Presenter::ensureBound(graphics::Graphics *gfx)
 {
-	if (!enabled) return;
+	if (!enabled || reentry) return;
 	ensureCanvas(gfx);
 	if (!internalCanvas) return;
+	if (isInternalCanvasBound(gfx)) return;
+	// Don't steal an unrelated user canvas.
+	if (gfx->isCanvasActive()) return;
 	reentry = true;
 	graphics::Graphics::RenderTarget rt(internalCanvas, 0, 0);
 	gfx->setCanvas(rt, 0);

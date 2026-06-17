@@ -595,6 +595,9 @@ void Graphics::endPass()
 
 void Graphics::clear(OptionalColorf c, OptionalInt stencil, OptionalDouble depth)
 {
+#ifdef LOVE_AURORAOS
+	love::auroraos::Presenter::getInstance().ensureBound(this);
+#endif
 	if (c.hasValue || stencil.hasValue || depth.hasValue)
 		flushStreamDraws();
 
@@ -641,6 +644,9 @@ void Graphics::clear(OptionalColorf c, OptionalInt stencil, OptionalDouble depth
 
 void Graphics::clear(const std::vector<OptionalColorf> &colors, OptionalInt stencil, OptionalDouble depth)
 {
+#ifdef LOVE_AURORAOS
+	love::auroraos::Presenter::getInstance().ensureBound(this);
+#endif
 	if (colors.size() == 0 && !stencil.hasValue && !depth.hasValue)
 		return;
 
@@ -1021,10 +1027,6 @@ void Graphics::present(void *screenshotCallbackData)
 	auto window = getInstance<love::window::Window>(M_WINDOW);
 	if (window != nullptr)
 		window->swapBuffers();
-
-#ifdef LOVE_AURORAOS
-	love::auroraos::Presenter::getInstance().afterPresent(this);
-#endif
 
 	// Reset the per-frame stat counts.
 	drawCalls = 0;

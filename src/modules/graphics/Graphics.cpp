@@ -1715,6 +1715,9 @@ void Graphics::shear(float kx, float ky)
 
 void Graphics::origin()
 {
+#ifdef LOVE_AURORAOS
+	love::auroraos::Presenter::getInstance().ensureBound(this);
+#endif
 	transformStack.back().setIdentity();
 	pixelScaleStack.back() = 1;
 }

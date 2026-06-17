@@ -67,7 +67,11 @@ public:
 
 	// Present-time hooks (called from Graphics::present).
 	void beforePresent(graphics::Graphics *gfx);
-	void afterPresent(graphics::Graphics *gfx);
+
+	// Frame-start hook: bind the internal canvas if not already bound.
+	// Called from Graphics::origin() / Graphics::clear() so that the canvas
+	// is only active during actual drawing -- not across event.pump().
+	void ensureBound(graphics::Graphics *gfx);
 
 	// Returns true if it handled the default-canvas request.
 	bool interceptSetCanvasDefault(graphics::Graphics *gfx);
