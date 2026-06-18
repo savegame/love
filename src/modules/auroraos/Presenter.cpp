@@ -10,6 +10,7 @@
 #include "graphics/Graphics.h"
 #include "graphics/Canvas.h"
 #include "common/Matrix.h"
+#include "common/Module.h"
 
 #include <SDL.h>
 #include <SDL_syswm.h>
@@ -76,9 +77,6 @@ void Presenter::setupForWindow(SDL_Window *w, int requestedW, int requestedH)
 		return;
 	}
 
-	logicalW = requestedW > 0 ? requestedW : 1;
-	logicalH = requestedH > 0 ? requestedH : 1;
-
 	displayIndex = SDL_GetWindowDisplayIndex(window);
 
 	SDL_Rect db;
@@ -91,10 +89,46 @@ void Presenter::setupForWindow(SDL_Window *w, int requestedW, int requestedH)
 
 	SDL_GetWindowSize(window, &windowW, &windowH);
 
+	// If the caller passed (0, 0) (game asked for "use current screen"), pick
+	// dimensions that fit the screen rather than a 1x1 canvas. Default to the
+	// window's longer axis going to the game's longer axis.
+	if (requestedW <= 0 || requestedH <= 0)
+	{
+		if (logicalW > 0 && logicalH > 0)
+		{
+			// Reuse the previous logical size — game probably wants no change.
+		}
+		else
+		{
+			logicalW = windowW;
+			logicalH = windowH;
+		}
+	}
+	else
+	{
+		logicalW = requestedW;
+		logicalH = requestedH;
+	}
+
 	lastSdlOrientation = SDL_GetDisplayOrientation(displayIndex);
 
-	SDL_Log("[AURORAOS] setupForWindow: requested=%dx%d displayIdx=%d displayBounds=%dx%d nativeLandscape=%d windowSize=%dx%d sdlOrient=%d",
-		requestedW, requestedH, displayIndex, displayW, displayH, (int)nativeLandscape, windowW, windowH, lastSdlOrientation);
+	SDL_Log("[AURORAOS] setupForWindow: requested=%dx%d -> logical=%dx%d displayIdx=%d displayBounds=%dx%d nativeLandscape=%d windowSize=%dx%d sdlOrient=%d",
+		requestedW, requestedH, logicalW, logicalH, displayIndex, displayW, displayH, (int)nativeLandscape, windowW, windowH, lastSdlOrientation);
+
+	// Force-unbind whatever canvas (ours or the user's) was active. After a
+	// Window recreate the GL context is gone and any bound canvas is stale.
+	// This also clears the graphics module's renderTargets StrongRef so
+	// subsequent isCanvasActive() guards see a clean state.
+	{
+		auto *gfx = Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS);
+		if (gfx && gfx->isCanvasActive())
+		{
+			reentry = true;
+			gfx->setCanvas();
+			reentry = false;
+			SDL_Log("[AURORAOS] setupForWindow: force-unbound active canvas");
+		}
+	}
 
 	// Drop existing canvas — its size or the rotation policy may have changed.
 	destroyCanvas();
@@ -149,6 +183,40 @@ static bool wantLandscape(OrientationPref pref, int logicalW, int logicalH)
 	}
 }
 
+// Direct table from the legacy SailfishOS/AuroraOS Love port (empirically
+// correct). Inputs: contentLandscape (game wants landscape), effSdl (the
+// SDL_DisplayOrientation as if the panel were portrait-native). Outputs:
+// rotationSteps (canvas draw rotation, 90deg CW per step) and wlTransform
+// (WL_OUTPUT_TRANSFORM_* value sent to compositor).
+//
+// SDL values: 1=LANDSCAPE 2=LANDSCAPE_FLIPPED 3=PORTRAIT 4=PORTRAIT_FLIPPED
+// WL values:  0=NORMAL    1=90               2=180     3=270
+static void rotationTable(bool contentLandscape, int effSdl, int &rotSteps, int &wlt)
+{
+	if (contentLandscape)
+	{
+		switch (effSdl)
+		{
+		case 1: rotSteps = 3; wlt = 1; break; // LANDSCAPE        -> 270CW canvas + WL_90
+		case 2: rotSteps = 1; wlt = 3; break; // LANDSCAPE_FLIPPED -> 90CW canvas + WL_270
+		case 4: rotSteps = 3; wlt = 3; break; // PORTRAIT_FLIPPED -> 270CW + WL_270
+		case 3:
+		default: rotSteps = 1; wlt = 1; break; // PORTRAIT/UNKNOWN -> 90CW + WL_90
+		}
+	}
+	else // portrait content
+	{
+		switch (effSdl)
+		{
+		case 2: rotSteps = 2; wlt = 2; break; // LANDSCAPE_FLIPPED -> 180 + WL_180
+		case 4: rotSteps = 2; wlt = 2; break; // PORTRAIT_FLIPPED  -> 180 + WL_180
+		case 1: rotSteps = 0; wlt = 0; break; // LANDSCAPE         -> none
+		case 3:
+		default: rotSteps = 0; wlt = 0; break;
+		}
+	}
+}
+
 void Presenter::recompute()
 {
 	if (!window)
@@ -158,34 +226,26 @@ void Presenter::recompute()
 
 	bool contentLandscape = wantLandscape(orientPref, logicalW, logicalH);
 
-	// Determine rotation. The compositor reports SDL orientation relative to
-	// the device's natural orientation. We must end up with content visually
-	// matching the user's hold direction.
-	//
-	// Strategy: compute a rotation in 90deg steps such that after rotating our
-	// canvas, its width axis is along the visible-content "width" direction.
-
-	// "Window axis is landscape" iff windowW > windowH (post-transform compositor
-	// hands us a backbuffer of native size — windowW/H reflect that).
-	bool windowAxisLandscape = windowW > windowH;
-
-	// If content orientation matches window axis, no rotation needed (just
-	// fit/stretch into window). Otherwise rotate 90 degrees.
-	int baseSteps = (contentLandscape == windowAxisLandscape) ? 0 : 1;
-
-	// Flip variants add 180.
-	bool flipped = (orientPref == ORIENT_PREF_LANDSCAPE_FLIPPED ||
-	                orientPref == ORIENT_PREF_PORTRAIT_FLIPPED);
-
-	// SDL_DisplayOrientation provides hardware-side hint; for "any" follow it.
-	if (orientPref == ORIENT_PREF_ANY)
+	// Re-map SDL orientation so the table above can be portrait-native only.
+	// On a landscape-native panel SDL says LANDSCAPE when held naturally, but
+	// from the rotation logic's perspective that's the same as PORTRAIT on a
+	// portrait-native panel.
+	int effSdl = lastSdlOrientation;
+	if (nativeLandscape)
 	{
-		// SDL_ORIENTATION_LANDSCAPE_FLIPPED=2, PORTRAIT_FLIPPED=4
-		if (lastSdlOrientation == 2 || lastSdlOrientation == 4)
-			flipped = true;
+		switch (effSdl) {
+		case 1: effSdl = 3; break;
+		case 3: effSdl = 1; break;
+		case 2: effSdl = 4; break;
+		case 4: effSdl = 2; break;
+		default: break;
+		}
 	}
 
-	rotationSteps = (baseSteps + (flipped ? 2 : 0)) & 3;
+	int rs = 0, wlt = 0;
+	rotationTable(contentLandscape, effSdl, rs, wlt);
+	rotationSteps = rs;
+	wlTransform = wlt;
 
 	// Compute destination rect in the *visible* (post-rotation) coord system,
 	// then we'll map through rotation at draw time.
@@ -218,13 +278,11 @@ void Presenter::recompute()
 	}
 	}
 
-	// We're "enabled" — always, on AuroraOS, since fullscreen surface and
-	// rotation/scale handling is a constant requirement.
 	enabled = true;
 
-	SDL_Log("[AURORAOS] recompute: logical=%dx%d window=%dx%d contentLandscape=%d windowAxisLandscape=%d baseSteps=%d flipped=%d rotationSteps=%d dst=(%.1f,%.1f %.1fx%.1f) scale=%d orientPref=%d",
-		logicalW, logicalH, windowW, windowH, (int)contentLandscape, (int)windowAxisLandscape,
-		baseSteps, (int)flipped, rotationSteps, dstX, dstY, dstW, dstH, (int)scale, (int)orientPref);
+	SDL_Log("[AURORAOS] recompute: logical=%dx%d window=%dx%d contentLandscape=%d nativeLandscape=%d sdlOrient=%d(eff=%d) rotationSteps=%d wlTransform=%d dst=(%.1f,%.1f %.1fx%.1f) scale=%d orientPref=%d",
+		logicalW, logicalH, windowW, windowH, (int)contentLandscape, (int)nativeLandscape,
+		lastSdlOrientation, effSdl, rotationSteps, wlTransform, dstX, dstY, dstW, dstH, (int)scale, (int)orientPref);
 }
 
 void Presenter::applyBufferTransform()
@@ -241,7 +299,7 @@ void Presenter::applyBufferTransform()
 	// Tell the compositor about our buffer orientation so swipes/top-menu
 	// edges align with the user's perception of "up".
 	uint32_t t;
-	switch (rotationSteps)
+	switch (wlTransform)
 	{
 	case 0: t = WL_OUTPUT_TRANSFORM_NORMAL; break;
 	case 1: t = WL_OUTPUT_TRANSFORM_90;     break;
@@ -250,11 +308,11 @@ void Presenter::applyBufferTransform()
 	default: t = WL_OUTPUT_TRANSFORM_NORMAL; break;
 	}
 	wl_surface_set_buffer_transform(wm.info.wl.surface, t);
-	SDL_Log("[AURORAOS] applyBufferTransform: wl_transform=%u rotationSteps=%d", t, rotationSteps);
+	SDL_Log("[AURORAOS] applyBufferTransform: wl_transform=%u (rotationSteps=%d)", t, rotationSteps);
 
 	// SDL also looks at this hint for QtWayland integration.
 	const char *h = "primary";
-	switch (rotationSteps)
+	switch (wlTransform)
 	{
 	case 0: h = "primary";   break;
 	case 1: h = "landscape"; break;
@@ -282,11 +340,23 @@ void Presenter::ensureCanvas(graphics::Graphics *gfx)
 
 void Presenter::destroyCanvas()
 {
-	if (internalCanvas)
+	if (!internalCanvas) return;
+
+	// If our canvas is currently bound in the graphics module's render-target
+	// state, unbind it first -- otherwise the graphics module's StrongRef
+	// keeps the (now-stale) canvas alive and isCanvasActive() keeps returning
+	// true for it, which breaks subsequent setMode/pump/etc. guards.
+	auto *gfx = Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS);
+	if (gfx && isInternalCanvasBound(gfx))
 	{
-		internalCanvas->release();
-		internalCanvas = nullptr;
+		reentry = true;
+		gfx->setCanvas();
+		reentry = false;
+		SDL_Log("[AURORAOS] destroyCanvas: unbound from graphics state");
 	}
+
+	internalCanvas->release();
+	internalCanvas = nullptr;
 }
 
 bool Presenter::isInternalCanvasBound(graphics::Graphics *gfx) const

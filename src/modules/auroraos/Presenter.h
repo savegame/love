@@ -118,9 +118,17 @@ private:
 	int logicalW = 1;
 	int logicalH = 1;
 
-	// Computed: rotation we apply at blit-time, in 90deg steps (0/1/2/3).
-	// Equals the wl_surface_set_buffer_transform value, conceptually.
+	// Computed: rotation we apply to the canvas at blit-time, in 90deg steps
+	// (0/1/2/3, CW). This is what the visual content needs to be rotated by
+	// for it to appear upright to a user holding the device per lastSdlOrientation.
 	int rotationSteps = 0;
+
+	// Computed: wl_surface_set_buffer_transform value we send to the compositor.
+	// In general NOT the same as rotationSteps -- it tells the compositor how
+	// our buffer is oriented relative to the panel, which is also a function of
+	// the panel's native orientation. (WL_OUTPUT_TRANSFORM_NORMAL=0, 90=1,
+	// 180=2, 270=3.)
+	int wlTransform = 0;
 
 	// Computed destination rect on the actual window/backbuffer (post-rotation
 	// composer space — i.e. in the visible content's coord system).
