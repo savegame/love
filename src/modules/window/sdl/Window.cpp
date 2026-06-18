@@ -450,6 +450,29 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 	f.display = std::min(std::max(f.display, 0), getDisplayCount() - 1);
 
+#ifdef LOVE_AURORAOS
+	// AuroraOS: the SDL window is always a fullscreen Wayland surface at the
+	// output's native resolution. The user-requested (width, height) is the
+	// LOGICAL game size and becomes the Presenter's offscreen canvas size,
+	// not the actual window. We force-override the relevant settings here.
+	int auroraos_logicalW = width;
+	int auroraos_logicalH = height;
+	f.fullscreen = true;
+	f.fstype = FULLSCREEN_DESKTOP;
+	f.resizable = false;
+	f.borderless = false;
+	f.centered = false;
+	f.useposition = false;
+	{
+		SDL_DisplayMode dm = {};
+		if (SDL_GetDesktopDisplayMode(f.display, &dm) == 0 && dm.w > 0 && dm.h > 0)
+		{
+			width = dm.w;
+			height = dm.h;
+		}
+	}
+#endif
+
 	// Use the desktop resolution if a width or height of 0 is specified.
 	if (width == 0 || height == 0)
 	{
@@ -564,7 +587,7 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 #endif
 
 #ifdef LOVE_AURORAOS
-	love::auroraos::Presenter::getInstance().setupForWindow(window, width, height);
+	love::auroraos::Presenter::getInstance().setupForWindow(window, auroraos_logicalW, auroraos_logicalH);
 #endif
 
 	return true;
