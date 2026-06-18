@@ -1162,21 +1162,11 @@ bool Window::isMouseGrabbed() const
 
 int Window::getWidth() const
 {
-#ifdef LOVE_AURORAOS
-	auto &p = love::auroraos::Presenter::getInstance();
-	if (p.isEnabled())
-		return p.getLogicalWidth();
-#endif
 	return windowWidth;
 }
 
 int Window::getHeight() const
 {
-#ifdef LOVE_AURORAOS
-	auto &p = love::auroraos::Presenter::getInstance();
-	if (p.isEnabled())
-		return p.getLogicalHeight();
-#endif
 	return windowHeight;
 }
 

@@ -48,10 +48,12 @@ static OrientationPref parsePref(const char *s)
 
 static ContentScale parseScale(const char *s)
 {
-	if (!s) return CONTENT_SCALE_FIT;
+	if (!s) return CONTENT_SCALE_EXPAND;
+	if (!strcmp(s, "expand"))  return CONTENT_SCALE_EXPAND;
+	if (!strcmp(s, "fit"))     return CONTENT_SCALE_FIT;
 	if (!strcmp(s, "stretch")) return CONTENT_SCALE_STRETCH;
 	if (!strcmp(s, "pixel"))   return CONTENT_SCALE_PIXEL;
-	return CONTENT_SCALE_FIT;
+	return CONTENT_SCALE_EXPAND;
 }
 
 void Presenter::setOrientationPref(const char *pref)
@@ -89,31 +91,27 @@ void Presenter::setupForWindow(SDL_Window *w, int requestedW, int requestedH)
 
 	SDL_GetWindowSize(window, &windowW, &windowH);
 
-	// If the caller passed (0, 0) (game asked for "use current screen"), pick
-	// dimensions that fit the screen rather than a 1x1 canvas. Default to the
-	// window's longer axis going to the game's longer axis.
+	// If the caller passed (0, 0) (game asked for "use current screen"), keep
+	// the previous request if there was one, else fall back to window dims.
 	if (requestedW <= 0 || requestedH <= 0)
 	{
-		if (logicalW > 0 && logicalH > 0)
+		if (this->requestedW <= 0 || this->requestedH <= 0)
 		{
-			// Reuse the previous logical size — game probably wants no change.
+			this->requestedW = windowW;
+			this->requestedH = windowH;
 		}
-		else
-		{
-			logicalW = windowW;
-			logicalH = windowH;
-		}
+		// else: keep previous request
 	}
 	else
 	{
-		logicalW = requestedW;
-		logicalH = requestedH;
+		this->requestedW = requestedW;
+		this->requestedH = requestedH;
 	}
 
 	lastSdlOrientation = SDL_GetDisplayOrientation(displayIndex);
 
-	SDL_Log("[AURORAOS] setupForWindow: requested=%dx%d -> logical=%dx%d displayIdx=%d displayBounds=%dx%d nativeLandscape=%d windowSize=%dx%d sdlOrient=%d",
-		requestedW, requestedH, logicalW, logicalH, displayIndex, displayW, displayH, (int)nativeLandscape, windowW, windowH, lastSdlOrientation);
+	SDL_Log("[AURORAOS] setupForWindow: requested=%dx%d stored=%dx%d displayIdx=%d displayBounds=%dx%d nativeLandscape=%d windowSize=%dx%d sdlOrient=%d",
+		requestedW, requestedH, this->requestedW, this->requestedH, displayIndex, displayW, displayH, (int)nativeLandscape, windowW, windowH, lastSdlOrientation);
 
 	// Force-unbind whatever canvas (ours or the user's) was active. After a
 	// Window recreate the GL context is gone and any bound canvas is stale.
@@ -224,12 +222,13 @@ void Presenter::recompute()
 
 	SDL_GetWindowSize(window, &windowW, &windowH);
 
-	bool contentLandscape = wantLandscape(orientPref, logicalW, logicalH);
+	// Decide content orientation from the *requested* game size, not from the
+	// current logicalW/H (which is what we're about to compute).
+	int baseW = requestedW > 0 ? requestedW : windowW;
+	int baseH = requestedH > 0 ? requestedH : windowH;
+	bool contentLandscape = wantLandscape(orientPref, baseW, baseH);
 
-	// Re-map SDL orientation so the table above can be portrait-native only.
-	// On a landscape-native panel SDL says LANDSCAPE when held naturally, but
-	// from the rotation logic's perspective that's the same as PORTRAIT on a
-	// portrait-native panel.
+	// Re-map SDL orientation so rotationTable() can be portrait-native only.
 	int effSdl = lastSdlOrientation;
 	if (nativeLandscape)
 	{
@@ -247,13 +246,45 @@ void Presenter::recompute()
 	rotationSteps = rs;
 	wlTransform = wlt;
 
-	// Compute destination rect in the *visible* (post-rotation) coord system,
-	// then we'll map through rotation at draw time.
+	// Visible (post-rotation) dims, i.e. the area as the user sees it.
 	int visW = (rotationSteps & 1) ? windowH : windowW;
 	int visH = (rotationSteps & 1) ? windowW : windowH;
 
+	// Compute logicalW/H (canvas dims) based on scale mode.
 	switch (scale)
 	{
+	case CONTENT_SCALE_EXPAND:
+		// Fill the entire visible area with a uniformly-scaled canvas; the
+		// canvas's SHORTER axis matches the request, the LONGER axis is
+		// expanded so the canvas fills visW x visH.
+		if (baseW > 0 && baseH > 0 && visW > 0 && visH > 0)
+		{
+			float cx = (float)visW / (float)baseW;
+			float cy = (float)visH / (float)baseH;
+			float c  = cx < cy ? cx : cy;
+			logicalW = (int)floor((float)visW / c);
+			logicalH = (int)floor((float)visH / c);
+		}
+		else
+		{
+			logicalW = baseW; logicalH = baseH;
+		}
+		break;
+	case CONTENT_SCALE_FIT:
+	case CONTENT_SCALE_STRETCH:
+	case CONTENT_SCALE_PIXEL:
+	default:
+		logicalW = baseW;
+		logicalH = baseH;
+		break;
+	}
+	if (logicalW < 1) logicalW = 1;
+	if (logicalH < 1) logicalH = 1;
+
+	// Compute dst rect (in visible coords) based on scale mode.
+	switch (scale)
+	{
+	case CONTENT_SCALE_EXPAND:
 	case CONTENT_SCALE_STRETCH:
 		dstX = 0; dstY = 0;
 		dstW = (float)visW; dstH = (float)visH;
@@ -280,8 +311,9 @@ void Presenter::recompute()
 
 	enabled = true;
 
-	SDL_Log("[AURORAOS] recompute: logical=%dx%d window=%dx%d contentLandscape=%d nativeLandscape=%d sdlOrient=%d(eff=%d) rotationSteps=%d wlTransform=%d dst=(%.1f,%.1f %.1fx%.1f) scale=%d orientPref=%d",
-		logicalW, logicalH, windowW, windowH, (int)contentLandscape, (int)nativeLandscape,
+	SDL_Log("[AURORAOS] recompute: req=%dx%d logical=%dx%d window=%dx%d vis=%dx%d contentLandscape=%d nativeLandscape=%d sdlOrient=%d(eff=%d) rotationSteps=%d wlTransform=%d dst=(%.1f,%.1f %.1fx%.1f) scale=%d orientPref=%d",
+		requestedW, requestedH, logicalW, logicalH, windowW, windowH, visW, visH,
+		(int)contentLandscape, (int)nativeLandscape,
 		lastSdlOrientation, effSdl, rotationSteps, wlTransform, dstX, dstY, dstW, dstH, (int)scale, (int)orientPref);
 }
 

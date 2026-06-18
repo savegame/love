@@ -34,9 +34,19 @@ namespace auroraos
 
 enum ContentScale
 {
-	CONTENT_SCALE_FIT,     // keep aspect, letterbox (default)
-	CONTENT_SCALE_STRETCH, // ignore aspect, fill window
-	CONTENT_SCALE_PIXEL,   // 1:1, centered
+	// Default. Aspect-correct, no letterbox: the SHORTER axis of the canvas
+	// matches the user's setMode request; the LONGER axis is expanded so the
+	// canvas fills the entire window. Game's love.graphics.getWidth/Height
+	// reports the expanded size (so game code positions things correctly).
+	CONTENT_SCALE_EXPAND,
+	// Aspect-correct with letterbox. Canvas equals the requested size; black
+	// bars fill the rest of the window.
+	CONTENT_SCALE_FIT,
+	// Canvas equals requested; drawn to the entire window, deforming aspect.
+	CONTENT_SCALE_STRETCH,
+	// Canvas equals requested; drawn 1:1, centered. Letterbox or clip if
+	// requested size doesn't match the window.
+	CONTENT_SCALE_PIXEL,
 };
 
 enum OrientationPref
@@ -114,7 +124,14 @@ private:
 	int windowW = 0;
 	int windowH = 0;
 
-	// Logical (game) size requested via setMode.
+	// Game's setMode request (the size the game asked for). Used as the base
+	// for expand-mode canvas computation and as the actual canvas dims for
+	// fit/stretch/pixel modes.
+	int requestedW = 0;
+	int requestedH = 0;
+
+	// Effective canvas dimensions. Equal to requestedW/H for fit/stretch/pixel
+	// modes; expanded to match the window aspect for expand mode.
 	int logicalW = 1;
 	int logicalH = 1;
 
@@ -135,7 +152,7 @@ private:
 	float dstX = 0, dstY = 0, dstW = 0, dstH = 0;
 
 	// Content scaling policy.
-	ContentScale scale = CONTENT_SCALE_FIT;
+	ContentScale scale = CONTENT_SCALE_EXPAND;
 
 	// Orientation request.
 	OrientationPref orientPref = ORIENT_PREF_ANY;
